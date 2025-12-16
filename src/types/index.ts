@@ -32,7 +32,7 @@ export interface Order {
   code: string;
   branchId: string;
   customerPhone: string;
-  bagTag?: string;
+  bagCardNumber?: string;
   status: OrderStatus;
   serviceType: ServiceType;
   clothesCount: number;
@@ -109,16 +109,16 @@ export interface Voucher {
   isActive: boolean;
 }
 
-// Status stage info
+// Status stage info - WashLab colors
 export const ORDER_STAGES: { status: OrderStatus; label: string; color: string }[] = [
-  { status: 'pending_dropoff', label: 'Pending Drop-off', color: 'bg-warning' },
-  { status: 'checked_in', label: 'Checked In', color: 'bg-primary' },
-  { status: 'sorting', label: 'Sorting', color: 'bg-wash-purple' },
-  { status: 'washing', label: 'Washing', color: 'bg-wash-blue' },
-  { status: 'drying', label: 'Drying', color: 'bg-wash-teal' },
-  { status: 'folding', label: 'Folding', color: 'bg-wash-pink' },
+  { status: 'pending_dropoff', label: 'Pending Drop-off', color: 'bg-wash-orange' },
+  { status: 'checked_in', label: 'Checked In', color: 'bg-wash-blue' },
+  { status: 'sorting', label: 'Sorting', color: 'bg-purple-500' },
+  { status: 'washing', label: 'Washing', color: 'bg-blue-500' },
+  { status: 'drying', label: 'Drying', color: 'bg-cyan-500' },
+  { status: 'folding', label: 'Folding', color: 'bg-pink-500' },
   { status: 'ready', label: 'Ready', color: 'bg-success' },
-  { status: 'out_for_delivery', label: 'Out for Delivery', color: 'bg-wash-orange' },
+  { status: 'out_for_delivery', label: 'Out for Delivery', color: 'bg-amber-500' },
   { status: 'completed', label: 'Completed', color: 'bg-muted-foreground' },
 ];
 

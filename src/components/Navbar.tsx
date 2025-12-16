@@ -77,10 +77,10 @@ export const Navbar = () => {
                 </Link>
               ))}
               <div className="flex gap-2 mt-4 px-4">
-                <Link to="/staff" className="flex-1">
+                <Link to="/staff" className="flex-1" onClick={() => setIsOpen(false)}>
                   <Button variant="ghost" size="sm" className="w-full">Staff</Button>
                 </Link>
-                <Link to="/admin" className="flex-1">
+                <Link to="/admin" className="flex-1" onClick={() => setIsOpen(false)}>
                   <Button variant="outline" size="sm" className="w-full">Admin</Button>
                 </Link>
               </div>
