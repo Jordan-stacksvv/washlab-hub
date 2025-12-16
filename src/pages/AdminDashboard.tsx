@@ -4,12 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
-import {
   Table,
   TableBody,
   TableCell,
@@ -34,13 +28,16 @@ import {
   Trash2,
   Download,
   Home,
-  DollarSign,
   Gift,
-  Calendar,
-  FileText,
   Clock,
-  UserCheck,
-  Settings
+  Settings,
+  LogOut,
+  ChevronRight,
+  TrendingUp,
+  DollarSign,
+  Package,
+  Shield,
+  ArrowRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -90,9 +87,22 @@ const mockDailyReport = {
   totalAmount: 350,
 };
 
+type Tab = 'overview' | 'branches' | 'staff' | 'attendance' | 'vouchers' | 'loyalty' | 'reports';
+
+const sidebarItems: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'overview', label: 'Overview', icon: BarChart3 },
+  { id: 'branches', label: 'Branches', icon: Building2 },
+  { id: 'staff', label: 'Staff', icon: Users },
+  { id: 'attendance', label: 'Attendance', icon: Clock },
+  { id: 'vouchers', label: 'Vouchers', icon: Tag },
+  { id: 'loyalty', label: 'Loyalty', icon: Gift },
+  { id: 'reports', label: 'Reports', icon: Download },
+];
+
 const AdminDashboard = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginPassword, setLoginPassword] = useState('');
+  const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [selectedDate, setSelectedDate] = useState('2025-01-15');
   const [selectedBranch, setSelectedBranch] = useState('Main Campus');
 
@@ -113,20 +123,28 @@ const AdminDashboard = () => {
     toast.success('Excel report generated and downloaded');
   };
 
+  // Login Screen
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-20 left-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-20 w-96 h-96 bg-wash-orange/10 rounded-full blur-3xl" />
+        </div>
+        
+        <div className="w-full max-w-md relative z-10">
           <div className="text-center mb-8">
-            <Logo size="lg" className="justify-center mb-4" />
-            <h1 className="text-2xl font-display font-bold mb-2">Admin Dashboard</h1>
-            <p className="text-muted-foreground">Enter your password to continue</p>
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-wash-orange mb-6 shadow-2xl">
+              <Shield className="w-10 h-10 text-white" />
+            </div>
+            <h1 className="text-3xl font-display font-bold text-white mb-2">Admin Dashboard</h1>
+            <p className="text-slate-400">Enter your password to continue</p>
           </div>
 
-          <div className="bg-card rounded-2xl border border-border p-6">
-            <div className="space-y-4">
+          <div className="bg-slate-800/50 backdrop-blur-xl rounded-3xl border border-slate-700/50 p-8 shadow-2xl">
+            <div className="space-y-6">
               <div>
-                <Label htmlFor="password">Admin Password</Label>
+                <Label htmlFor="password" className="text-slate-300 text-sm font-medium">Admin Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -134,15 +152,19 @@ const AdminDashboard = () => {
                   onChange={(e) => setLoginPassword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                   placeholder="Enter password"
-                  className="mt-1"
+                  className="mt-2 h-14 bg-slate-900/50 border-slate-600 text-white placeholder:text-slate-500 rounded-xl"
                 />
               </div>
-              <Button onClick={handleLogin} className="w-full">
-                Login
+              <Button 
+                onClick={handleLogin} 
+                className="w-full h-14 text-lg rounded-xl bg-gradient-to-r from-primary to-wash-orange hover:opacity-90 transition-opacity"
+              >
+                Access Dashboard
+                <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-4 text-center">
-              Demo password: admin123
+            <p className="text-xs text-slate-500 mt-6 text-center">
+              Demo password: <span className="text-slate-400 font-mono">admin123</span>
             </p>
           </div>
         </div>
@@ -150,90 +172,148 @@ const AdminDashboard = () => {
     );
   }
 
+  // Main Dashboard
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 glass-strong border-b border-border">
-        <div className="container flex items-center justify-between h-16 px-4">
-          <Logo size="sm" />
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => window.location.href = '/'}>
-              <Home className="w-5 h-5" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setIsLoggedIn(false)}>
-              Logout
-            </Button>
-          </div>
+    <div className="min-h-screen bg-slate-900 flex">
+      {/* Sidebar */}
+      <aside className="w-64 bg-slate-800/50 border-r border-slate-700/50 flex flex-col">
+        <div className="p-6 border-b border-slate-700/50">
+          <Logo size="sm" className="text-white" />
         </div>
-      </header>
+        
+        <nav className="flex-1 p-4 space-y-1">
+          {sidebarItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${
+                activeTab === item.id
+                  ? 'bg-gradient-to-r from-primary/20 to-wash-orange/20 text-white border border-primary/30'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <item.icon className="w-5 h-5" />
+              <span className="font-medium">{item.label}</span>
+            </button>
+          ))}
+        </nav>
 
-      <div className="container px-4 py-6">
-        <h1 className="text-2xl font-display font-bold mb-6">Admin Dashboard</h1>
+        <div className="p-4 border-t border-slate-700/50 space-y-2">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start text-slate-400 hover:text-white hover:bg-slate-700/50"
+            onClick={() => window.location.href = '/'}
+          >
+            <Home className="w-5 h-5 mr-3" />
+            Back to Home
+          </Button>
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-500/10"
+            onClick={() => setIsLoggedIn(false)}
+          >
+            <LogOut className="w-5 h-5 mr-3" />
+            Logout
+          </Button>
+        </div>
+      </aside>
 
-        <Tabs defaultValue="branches" className="space-y-6">
-          <TabsList className="flex flex-wrap gap-2 h-auto p-1">
-            <TabsTrigger value="branches" className="gap-2">
-              <Building2 className="w-4 h-4" />
-              Branches
-            </TabsTrigger>
-            <TabsTrigger value="staff" className="gap-2">
-              <Users className="w-4 h-4" />
-              Staff
-            </TabsTrigger>
-            <TabsTrigger value="attendance" className="gap-2">
-              <Clock className="w-4 h-4" />
-              Attendance
-            </TabsTrigger>
-            <TabsTrigger value="vouchers" className="gap-2">
-              <Tag className="w-4 h-4" />
-              Vouchers
-            </TabsTrigger>
-            <TabsTrigger value="loyalty" className="gap-2">
-              <Gift className="w-4 h-4" />
-              Loyalty
-            </TabsTrigger>
-            <TabsTrigger value="reports" className="gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Reports
-            </TabsTrigger>
-          </TabsList>
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto">
+        <header className="sticky top-0 z-10 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50 px-8 py-4">
+          <h1 className="text-2xl font-display font-bold text-white capitalize">{activeTab}</h1>
+        </header>
+
+        <div className="p-8">
+          {/* Overview Tab */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[
+                  { label: 'Total Revenue', value: '₵12,450', change: '+12%', icon: DollarSign, color: 'emerald' },
+                  { label: 'Orders Today', value: '47', change: '+8%', icon: Package, color: 'blue' },
+                  { label: 'Active Staff', value: '6', change: '0%', icon: Users, color: 'purple' },
+                  { label: 'Branches', value: '3', change: '+1', icon: Building2, color: 'orange' },
+                ].map((stat) => (
+                  <div key={stat.label} className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className={`w-12 h-12 rounded-xl bg-${stat.color}-500/20 flex items-center justify-center`}>
+                        <stat.icon className={`w-6 h-6 text-${stat.color}-400`} />
+                      </div>
+                      <span className="text-emerald-400 text-sm font-medium flex items-center gap-1">
+                        <TrendingUp className="w-4 h-4" />
+                        {stat.change}
+                      </span>
+                    </div>
+                    <p className="text-3xl font-display font-bold text-white mb-1">{stat.value}</p>
+                    <p className="text-sm text-slate-400">{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Quick Actions */}
+              <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
+                <h3 className="text-lg font-display font-semibold text-white mb-4">Quick Actions</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Add Branch', icon: Building2, onClick: () => setActiveTab('branches') },
+                    { label: 'Add Staff', icon: Users, onClick: () => setActiveTab('staff') },
+                    { label: 'Create Voucher', icon: Tag, onClick: () => setActiveTab('vouchers') },
+                    { label: 'Export Report', icon: Download, onClick: generatePDFReport },
+                  ].map((action) => (
+                    <button
+                      key={action.label}
+                      onClick={action.onClick}
+                      className="flex flex-col items-center gap-3 p-4 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 transition-colors group"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                        <action.icon className="w-6 h-6 text-primary" />
+                      </div>
+                      <span className="text-sm text-slate-300 font-medium">{action.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Branches Tab */}
-          <TabsContent value="branches">
-            <div className="bg-card rounded-2xl border border-border p-6">
+          {activeTab === 'branches' && (
+            <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="font-display font-semibold text-lg">Manage Branches</h2>
+                <h2 className="font-display font-semibold text-lg text-white">Manage Branches</h2>
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button size="sm">
-                      <Plus className="w-4 h-4" />
+                    <Button className="rounded-xl bg-gradient-to-r from-primary to-wash-orange">
+                      <Plus className="w-4 h-4 mr-2" />
                       Add Branch
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="bg-slate-800 border-slate-700">
                     <DialogHeader>
-                      <DialogTitle>Add New Branch</DialogTitle>
+                      <DialogTitle className="text-white">Add New Branch</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 pt-4">
                       <div>
-                        <Label>Branch Name</Label>
-                        <Input placeholder="e.g. Main Campus" className="mt-1" />
+                        <Label className="text-slate-300">Branch Name</Label>
+                        <Input placeholder="e.g. Main Campus" className="mt-1 bg-slate-900 border-slate-600 text-white" />
                       </div>
                       <div>
-                        <Label>Location</Label>
-                        <Input placeholder="e.g. Legon" className="mt-1" />
+                        <Label className="text-slate-300">Location</Label>
+                        <Input placeholder="e.g. Legon" className="mt-1 bg-slate-900 border-slate-600 text-white" />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <Label>Price per Load (₵)</Label>
-                          <Input type="number" defaultValue="25" className="mt-1" />
+                          <Label className="text-slate-300">Price per Load (₵)</Label>
+                          <Input type="number" defaultValue="25" className="mt-1 bg-slate-900 border-slate-600 text-white" />
                         </div>
                         <div>
-                          <Label>Delivery Fee (₵)</Label>
-                          <Input type="number" defaultValue="5" className="mt-1" />
+                          <Label className="text-slate-300">Delivery Fee (₵)</Label>
+                          <Input type="number" defaultValue="5" className="mt-1 bg-slate-900 border-slate-600 text-white" />
                         </div>
                       </div>
-                      <Button className="w-full" onClick={() => toast.success('Branch added')}>
+                      <Button className="w-full rounded-xl bg-gradient-to-r from-primary to-wash-orange" onClick={() => toast.success('Branch added')}>
                         Add Branch
                       </Button>
                     </div>
@@ -243,34 +323,34 @@ const AdminDashboard = () => {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Price/Load</TableHead>
-                      <TableHead>Delivery Fee</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                    <TableRow className="border-slate-700">
+                      <TableHead className="text-slate-400">Name</TableHead>
+                      <TableHead className="text-slate-400">Location</TableHead>
+                      <TableHead className="text-slate-400">Price/Load</TableHead>
+                      <TableHead className="text-slate-400">Delivery Fee</TableHead>
+                      <TableHead className="text-slate-400">Status</TableHead>
+                      <TableHead className="text-slate-400 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {mockBranches.map((branch) => (
-                      <TableRow key={branch.id}>
-                        <TableCell className="font-medium">{branch.name}</TableCell>
-                        <TableCell>{branch.location}</TableCell>
-                        <TableCell>₵{branch.pricePerLoad}</TableCell>
-                        <TableCell>₵{branch.deliveryFee}</TableCell>
+                      <TableRow key={branch.id} className="border-slate-700/50">
+                        <TableCell className="font-medium text-white">{branch.name}</TableCell>
+                        <TableCell className="text-slate-300">{branch.location}</TableCell>
+                        <TableCell className="text-slate-300">₵{branch.pricePerLoad}</TableCell>
+                        <TableCell className="text-slate-300">₵{branch.deliveryFee}</TableCell>
                         <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            branch.isActive ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            branch.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-600/50 text-slate-400'
                           }`}>
                             {branch.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
                             <Settings className="w-4 h-4" />
                           </Button>
                         </TableCell>
@@ -280,52 +360,52 @@ const AdminDashboard = () => {
                 </Table>
               </div>
             </div>
-          </TabsContent>
+          )}
 
           {/* Staff Tab */}
-          <TabsContent value="staff">
-            <div className="bg-card rounded-2xl border border-border p-6">
+          {activeTab === 'staff' && (
+            <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="font-display font-semibold text-lg">Manage Staff</h2>
+                <h2 className="font-display font-semibold text-lg text-white">Manage Staff</h2>
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button size="sm">
-                      <Plus className="w-4 h-4" />
+                    <Button className="rounded-xl bg-gradient-to-r from-primary to-wash-orange">
+                      <Plus className="w-4 h-4 mr-2" />
                       Add Staff
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="bg-slate-800 border-slate-700">
                     <DialogHeader>
-                      <DialogTitle>Add New Staff</DialogTitle>
+                      <DialogTitle className="text-white">Add New Staff</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 pt-4">
                       <div>
-                        <Label>Full Name</Label>
-                        <Input placeholder="e.g. John Doe" className="mt-1" />
+                        <Label className="text-slate-300">Full Name</Label>
+                        <Input placeholder="e.g. John Doe" className="mt-1 bg-slate-900 border-slate-600 text-white" />
                       </div>
                       <div>
-                        <Label>Phone Number</Label>
-                        <Input placeholder="0XX XXX XXXX" className="mt-1" />
+                        <Label className="text-slate-300">Phone Number</Label>
+                        <Input placeholder="0XX XXX XXXX" className="mt-1 bg-slate-900 border-slate-600 text-white" />
                       </div>
                       <div>
-                        <Label>Branch</Label>
-                        <select className="w-full mt-1 h-10 rounded-md border border-input bg-background px-3">
+                        <Label className="text-slate-300">Branch</Label>
+                        <select className="w-full mt-1 h-10 rounded-xl border border-slate-600 bg-slate-900 text-white px-3">
                           {mockBranches.map(b => (
                             <option key={b.id} value={b.id}>{b.name}</option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <Label>Role</Label>
-                        <select className="w-full mt-1 h-10 rounded-md border border-input bg-background px-3">
+                        <Label className="text-slate-300">Role</Label>
+                        <select className="w-full mt-1 h-10 rounded-xl border border-slate-600 bg-slate-900 text-white px-3">
                           <option value="receptionist">Receptionist</option>
                           <option value="admin">Admin</option>
                         </select>
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-slate-500">
                         Staff will register their face during their first sign-in via Face ID
                       </p>
-                      <Button className="w-full" onClick={() => toast.success('Staff added')}>
+                      <Button className="w-full rounded-xl bg-gradient-to-r from-primary to-wash-orange" onClick={() => toast.success('Staff added')}>
                         Add Staff
                       </Button>
                     </div>
@@ -335,34 +415,34 @@ const AdminDashboard = () => {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Branch</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                    <TableRow className="border-slate-700">
+                      <TableHead className="text-slate-400">Name</TableHead>
+                      <TableHead className="text-slate-400">Phone</TableHead>
+                      <TableHead className="text-slate-400">Role</TableHead>
+                      <TableHead className="text-slate-400">Branch</TableHead>
+                      <TableHead className="text-slate-400">Status</TableHead>
+                      <TableHead className="text-slate-400 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {mockStaff.map((staff) => (
-                      <TableRow key={staff.id}>
-                        <TableCell className="font-medium">{staff.name}</TableCell>
-                        <TableCell>{staff.phone}</TableCell>
-                        <TableCell className="capitalize">{staff.role}</TableCell>
-                        <TableCell>{mockBranches.find(b => b.id === staff.branchId)?.name}</TableCell>
+                      <TableRow key={staff.id} className="border-slate-700/50">
+                        <TableCell className="font-medium text-white">{staff.name}</TableCell>
+                        <TableCell className="text-slate-300">{staff.phone}</TableCell>
+                        <TableCell className="text-slate-300 capitalize">{staff.role}</TableCell>
+                        <TableCell className="text-slate-300">{mockBranches.find(b => b.id === staff.branchId)?.name}</TableCell>
                         <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            staff.isActive ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            staff.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-600/50 text-slate-400'
                           }`}>
                             {staff.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-400">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </TableCell>
@@ -372,16 +452,16 @@ const AdminDashboard = () => {
                 </Table>
               </div>
             </div>
-          </TabsContent>
+          )}
 
           {/* Attendance Tab */}
-          <TabsContent value="attendance">
-            <div className="bg-card rounded-2xl border border-border p-6">
+          {activeTab === 'attendance' && (
+            <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="font-display font-semibold text-lg">Attendance Logs</h2>
-                <div className="flex gap-2">
-                  <Input type="date" defaultValue="2025-01-15" className="w-auto" />
-                  <select className="h-10 rounded-md border border-input bg-background px-3">
+                <h2 className="font-display font-semibold text-lg text-white">Attendance Logs</h2>
+                <div className="flex gap-3">
+                  <Input type="date" defaultValue="2025-01-15" className="w-auto bg-slate-900 border-slate-600 text-white rounded-xl" />
+                  <select className="h-10 rounded-xl border border-slate-600 bg-slate-900 text-white px-3">
                     <option>All Branches</option>
                     {mockBranches.map(b => (
                       <option key={b.id}>{b.name}</option>
@@ -392,58 +472,58 @@ const AdminDashboard = () => {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Staff Name</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>Timestamp</TableHead>
-                      <TableHead>Branch</TableHead>
+                    <TableRow className="border-slate-700">
+                      <TableHead className="text-slate-400">Staff Name</TableHead>
+                      <TableHead className="text-slate-400">Action</TableHead>
+                      <TableHead className="text-slate-400">Timestamp</TableHead>
+                      <TableHead className="text-slate-400">Branch</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {mockAttendance.map((log) => (
-                      <TableRow key={log.id}>
-                        <TableCell className="font-medium">{log.staffName}</TableCell>
+                      <TableRow key={log.id} className="border-slate-700/50">
+                        <TableCell className="font-medium text-white">{log.staffName}</TableCell>
                         <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            log.action === 'sign_in' ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            log.action === 'sign_in' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
                           }`}>
                             {log.action === 'sign_in' ? 'Sign In' : 'Sign Out'}
                           </span>
                         </TableCell>
-                        <TableCell>{log.timestamp}</TableCell>
-                        <TableCell>{log.branch}</TableCell>
+                        <TableCell className="text-slate-300">{log.timestamp}</TableCell>
+                        <TableCell className="text-slate-300">{log.branch}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </div>
             </div>
-          </TabsContent>
+          )}
 
           {/* Vouchers Tab */}
-          <TabsContent value="vouchers">
-            <div className="bg-card rounded-2xl border border-border p-6">
+          {activeTab === 'vouchers' && (
+            <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="font-display font-semibold text-lg">Manage Vouchers</h2>
+                <h2 className="font-display font-semibold text-lg text-white">Manage Vouchers</h2>
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button size="sm">
-                      <Plus className="w-4 h-4" />
+                    <Button className="rounded-xl bg-gradient-to-r from-primary to-wash-orange">
+                      <Plus className="w-4 h-4 mr-2" />
                       Create Voucher
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="bg-slate-800 border-slate-700">
                     <DialogHeader>
-                      <DialogTitle>Create New Voucher</DialogTitle>
+                      <DialogTitle className="text-white">Create New Voucher</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 pt-4">
                       <div>
-                        <Label>Voucher Code</Label>
-                        <Input placeholder="e.g. SUMMER20" className="mt-1" />
+                        <Label className="text-slate-300">Voucher Code</Label>
+                        <Input placeholder="e.g. SUMMER20" className="mt-1 bg-slate-900 border-slate-600 text-white uppercase" />
                       </div>
                       <div>
-                        <Label>Discount Type</Label>
-                        <select className="w-full mt-1 h-10 rounded-md border border-input bg-background px-3">
+                        <Label className="text-slate-300">Discount Type</Label>
+                        <select className="w-full mt-1 h-10 rounded-xl border border-slate-600 bg-slate-900 text-white px-3">
                           <option value="percentage">Percentage Off</option>
                           <option value="fixed">Fixed Amount</option>
                           <option value="free_wash">Free Wash</option>
@@ -451,28 +531,19 @@ const AdminDashboard = () => {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <Label>Value</Label>
-                          <Input type="number" placeholder="10" className="mt-1" />
+                          <Label className="text-slate-300">Value</Label>
+                          <Input type="number" placeholder="10" className="mt-1 bg-slate-900 border-slate-600 text-white" />
                         </div>
                         <div>
-                          <Label>Usage Limit</Label>
-                          <Input type="number" placeholder="100" className="mt-1" />
+                          <Label className="text-slate-300">Usage Limit</Label>
+                          <Input type="number" placeholder="100" className="mt-1 bg-slate-900 border-slate-600 text-white" />
                         </div>
                       </div>
                       <div>
-                        <Label>Valid Until</Label>
-                        <Input type="date" className="mt-1" />
+                        <Label className="text-slate-300">Valid Until</Label>
+                        <Input type="date" className="mt-1 bg-slate-900 border-slate-600 text-white" />
                       </div>
-                      <div>
-                        <Label>Branch (optional)</Label>
-                        <select className="w-full mt-1 h-10 rounded-md border border-input bg-background px-3">
-                          <option value="">All Branches</option>
-                          {mockBranches.map(b => (
-                            <option key={b.id} value={b.id}>{b.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <Button className="w-full" onClick={() => toast.success('Voucher created')}>
+                      <Button className="w-full rounded-xl bg-gradient-to-r from-primary to-wash-orange" onClick={() => toast.success('Voucher created')}>
                         Create Voucher
                       </Button>
                     </div>
@@ -482,42 +553,37 @@ const AdminDashboard = () => {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Value</TableHead>
-                      <TableHead>Usage</TableHead>
-                      <TableHead>Valid Until</TableHead>
-                      <TableHead>Branch</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                    <TableRow className="border-slate-700">
+                      <TableHead className="text-slate-400">Code</TableHead>
+                      <TableHead className="text-slate-400">Discount</TableHead>
+                      <TableHead className="text-slate-400">Usage</TableHead>
+                      <TableHead className="text-slate-400">Valid Until</TableHead>
+                      <TableHead className="text-slate-400">Status</TableHead>
+                      <TableHead className="text-slate-400 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {mockVouchers.map((voucher) => (
-                      <TableRow key={voucher.id}>
-                        <TableCell className="font-medium font-mono">{voucher.code}</TableCell>
-                        <TableCell className="capitalize">{voucher.discountType.replace('_', ' ')}</TableCell>
-                        <TableCell>
-                          {voucher.discountType === 'percentage' ? `${voucher.discountValue}%` :
-                           voucher.discountType === 'free_wash' ? `${voucher.discountValue} wash` :
-                           `₵${voucher.discountValue}`}
+                      <TableRow key={voucher.id} className="border-slate-700/50">
+                        <TableCell className="font-mono font-medium text-white">{voucher.code}</TableCell>
+                        <TableCell className="text-slate-300">
+                          {voucher.discountType === 'percentage' ? `${voucher.discountValue}%` : 
+                           voucher.discountType === 'free_wash' ? 'Free Wash' : `₵${voucher.discountValue}`}
                         </TableCell>
-                        <TableCell>{voucher.usedCount} / {voucher.usageLimit}</TableCell>
-                        <TableCell>{voucher.validTo}</TableCell>
-                        <TableCell>{voucher.branchId ? mockBranches.find(b => b.id === voucher.branchId)?.name : 'All'}</TableCell>
+                        <TableCell className="text-slate-300">{voucher.usedCount}/{voucher.usageLimit}</TableCell>
+                        <TableCell className="text-slate-300">{voucher.validTo}</TableCell>
                         <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            voucher.isActive ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            voucher.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-600/50 text-slate-400'
                           }`}>
                             {voucher.isActive ? 'Active' : 'Expired'}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon">
+                          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-400">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </TableCell>
@@ -527,63 +593,67 @@ const AdminDashboard = () => {
                 </Table>
               </div>
             </div>
-          </TabsContent>
+          )}
 
           {/* Loyalty Tab */}
-          <TabsContent value="loyalty">
-            <div className="bg-card rounded-2xl border border-border p-6">
+          {activeTab === 'loyalty' && (
+            <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
               <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="font-display font-semibold text-lg">Customer Loyalty</h2>
-                  <p className="text-sm text-muted-foreground">10 points = 1 free wash</p>
-                </div>
-                <Input placeholder="Search by phone..." className="w-64" />
+                <h2 className="font-display font-semibold text-lg text-white">Customer Loyalty</h2>
+                <Input placeholder="Search by phone or name" className="w-64 bg-slate-900 border-slate-600 text-white rounded-xl" />
               </div>
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Points</TableHead>
-                      <TableHead>Total Orders</TableHead>
-                      <TableHead>Total Spent</TableHead>
-                      <TableHead>Free Washes Earned</TableHead>
+                    <TableRow className="border-slate-700">
+                      <TableHead className="text-slate-400">Customer</TableHead>
+                      <TableHead className="text-slate-400">Phone</TableHead>
+                      <TableHead className="text-slate-400">Points</TableHead>
+                      <TableHead className="text-slate-400">Orders</TableHead>
+                      <TableHead className="text-slate-400">Total Spent</TableHead>
+                      <TableHead className="text-slate-400 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {mockCustomers.map((customer) => (
-                      <TableRow key={customer.phone}>
-                        <TableCell className="font-mono">{customer.phone}</TableCell>
-                        <TableCell className="font-medium">{customer.name}</TableCell>
+                      <TableRow key={customer.phone} className="border-slate-700/50">
+                        <TableCell className="font-medium text-white">{customer.name}</TableCell>
+                        <TableCell className="text-slate-300">{customer.phone}</TableCell>
                         <TableCell>
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-wash-orange/20 text-wash-orange">
-                            <Gift className="w-3 h-3" />
-                            {customer.loyaltyPoints}
+                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400">
+                            {customer.loyaltyPoints} pts
                           </span>
                         </TableCell>
-                        <TableCell>{customer.totalOrders}</TableCell>
-                        <TableCell>₵{customer.totalSpent}</TableCell>
-                        <TableCell>{Math.floor(customer.loyaltyPoints / 10)}</TableCell>
+                        <TableCell className="text-slate-300">{customer.totalOrders}</TableCell>
+                        <TableCell className="text-slate-300">₵{customer.totalSpent}</TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
+                            View History
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </div>
             </div>
-          </TabsContent>
+          )}
 
           {/* Reports Tab */}
-          <TabsContent value="reports">
+          {activeTab === 'reports' && (
             <div className="space-y-6">
-              {/* Report Filters */}
-              <div className="bg-card rounded-2xl border border-border p-6">
-                <h2 className="font-display font-semibold text-lg mb-4">Generate Report</h2>
-                <div className="grid md:grid-cols-4 gap-4">
+              {/* Filters */}
+              <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
+                <h2 className="font-display font-semibold text-lg text-white mb-4">Generate Report</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div>
-                    <Label>Branch</Label>
+                    <Label className="text-slate-300">Date</Label>
+                    <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="mt-1 bg-slate-900 border-slate-600 text-white rounded-xl" />
+                  </div>
+                  <div>
+                    <Label className="text-slate-300">Branch</Label>
                     <select 
-                      className="w-full mt-1 h-10 rounded-md border border-input bg-background px-3"
+                      className="w-full mt-1 h-10 rounded-xl border border-slate-600 bg-slate-900 text-white px-3"
                       value={selectedBranch}
                       onChange={(e) => setSelectedBranch(e.target.value)}
                     >
@@ -592,107 +662,55 @@ const AdminDashboard = () => {
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <Label>Date</Label>
-                    <Input 
-                      type="date" 
-                      className="mt-1" 
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label>Staff (optional)</Label>
-                    <select className="w-full mt-1 h-10 rounded-md border border-input bg-background px-3">
-                      <option>All Staff</option>
-                      {mockStaff.filter(s => s.role === 'receptionist').map(s => (
-                        <option key={s.id}>{s.name}</option>
-                      ))}
-                    </select>
-                  </div>
                   <div className="flex items-end gap-2">
-                    <Button onClick={generatePDFReport} className="flex-1">
-                      <FileText className="w-4 h-4" />
+                    <Button onClick={generatePDFReport} className="flex-1 rounded-xl">
+                      <Download className="w-4 h-4 mr-2" />
                       PDF
                     </Button>
-                    <Button onClick={generateExcelReport} variant="outline" className="flex-1">
-                      <Download className="w-4 h-4" />
+                    <Button onClick={generateExcelReport} variant="outline" className="flex-1 rounded-xl border-slate-600 text-slate-300">
+                      <Download className="w-4 h-4 mr-2" />
                       Excel
                     </Button>
                   </div>
                 </div>
               </div>
 
-              {/* Sample Report Preview */}
-              <div className="bg-card rounded-2xl border border-border p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="font-display font-semibold text-lg">{mockDailyReport.branch}</h3>
-                    <p className="text-sm text-muted-foreground flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      {mockDailyReport.date}
-                    </p>
+              {/* Report Preview */}
+              <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
+                <h3 className="font-display font-semibold text-white mb-4">
+                  Daily Report: {mockDailyReport.date} - {mockDailyReport.branch}
+                </h3>
+                <div className="bg-slate-900/50 rounded-xl p-6 font-mono text-sm">
+                  <p className="text-slate-400 mb-4">Staff: {mockDailyReport.staff.join(', ')}</p>
+                  <div className="grid grid-cols-2 gap-4 text-slate-300">
+                    <div>Wash: <span className="text-white">{mockDailyReport.wash}</span></div>
+                    <div>Dryer: <span className="text-white">{mockDailyReport.dryer}</span></div>
+                    <div>Detergent: <span className="text-white">{mockDailyReport.detergent}</span></div>
+                    <div>Extra Detergent: <span className="text-white">{mockDailyReport.extraDetergent}</span></div>
+                    <div>Technical Fault: <span className="text-white">{mockDailyReport.technicalFault}</span></div>
+                    <div>Tokens Used: <span className="text-white">{mockDailyReport.tokens}</span></div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={generatePDFReport}>
-                    <FileText className="w-4 h-4" />
-                    Download
-                  </Button>
-                </div>
-
-                <div className="mb-6 p-4 bg-muted/50 rounded-xl">
-                  <p className="text-sm text-muted-foreground mb-1">Staff on duty:</p>
-                  <p className="font-medium">{mockDailyReport.staff.join(', ')}</p>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-wash-blue/10 rounded-xl p-4 text-center">
-                    <p className="text-2xl font-display font-bold text-wash-blue">{mockDailyReport.wash}</p>
-                    <p className="text-xs text-muted-foreground">Wash</p>
-                  </div>
-                  <div className="bg-wash-orange/10 rounded-xl p-4 text-center">
-                    <p className="text-2xl font-display font-bold text-wash-orange">{mockDailyReport.dryer}</p>
-                    <p className="text-xs text-muted-foreground">Dryer</p>
-                  </div>
-                  <div className="bg-muted rounded-xl p-4 text-center">
-                    <p className="text-2xl font-display font-bold">{mockDailyReport.detergent}</p>
-                    <p className="text-xs text-muted-foreground">Detergent</p>
-                  </div>
-                  <div className="bg-muted rounded-xl p-4 text-center">
-                    <p className="text-2xl font-display font-bold">{mockDailyReport.tokens}</p>
-                    <p className="text-xs text-muted-foreground">Tokens</p>
-                  </div>
-                </div>
-
-                <div className="border-t border-border pt-4 space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Extra Detergent</span>
-                    <span>{mockDailyReport.extraDetergent}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Technical Faults</span>
-                    <span>{mockDailyReport.technicalFault}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Hubtel/MoMo</span>
-                    <span className="font-medium">₵{mockDailyReport.hubtelAmount}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Cash</span>
-                    <span className="font-medium">₵{mockDailyReport.cashAmount}</span>
-                  </div>
-                  <div className="flex justify-between text-lg font-semibold pt-2 border-t border-border">
-                    <span>Total</span>
-                    <span className="text-gradient flex items-center gap-1">
-                      <DollarSign className="w-5 h-5" />
-                      ₵{mockDailyReport.totalAmount}
-                    </span>
+                  <hr className="border-slate-700 my-4" />
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-slate-300">
+                      <span>Hubtel Amount:</span>
+                      <span className="text-white">₵{mockDailyReport.hubtelAmount}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-300">
+                      <span>Cash Amount:</span>
+                      <span className="text-white">₵{mockDailyReport.cashAmount}</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold text-white">
+                      <span>TOTAL:</span>
+                      <span className="text-emerald-400">₵{mockDailyReport.totalAmount}</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 };
