@@ -6,6 +6,8 @@ export interface OrderItem {
   quantity: number;
 }
 
+export type PaymentMethod = 'cash' | 'hubtel' | 'momo' | 'pending';
+
 export interface Order {
   id: string;
   code: string;
@@ -24,6 +26,16 @@ export interface Order {
   washSeparately?: boolean;
   notes?: string;
   createdAt: Date;
+  // Payment tracking
+  paymentMethod: PaymentMethod;
+  paymentStatus: 'pending' | 'paid';
+  paidAt?: Date;
+  paidAmount?: number;
+  // Staff tracking
+  checkedInBy?: string;
+  processedBy?: string;
+  // Order type
+  orderType: 'online' | 'walkin';
 }
 
 interface OrderContextType {
@@ -35,6 +47,13 @@ interface OrderContextType {
   getPendingOrders: () => Order[];
   getActiveOrders: () => Order[];
   getReadyOrders: () => Order[];
+  getCompletedOrders: () => Order[];
+  // Revenue tracking for admin
+  getTotalRevenue: () => number;
+  getCashRevenue: () => number;
+  getOnlineRevenue: () => number;
+  getRevenueByDate: (date: Date) => { cash: number; online: number; total: number };
+  getOrdersByDateRange: (startDate: Date, endDate: Date) => Order[];
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -49,7 +68,12 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
         const parsed = JSON.parse(stored);
         return parsed.map((o: any) => ({
           ...o,
-          createdAt: new Date(o.createdAt)
+          createdAt: new Date(o.createdAt),
+          paidAt: o.paidAt ? new Date(o.paidAt) : undefined,
+          // Ensure defaults for older orders
+          paymentMethod: o.paymentMethod || 'pending',
+          paymentStatus: o.paymentStatus || 'pending',
+          orderType: o.orderType || 'online',
         }));
       } catch {
         return [];
@@ -100,6 +124,54 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
     return orders.filter(o => o.status === 'ready');
   };
 
+  const getCompletedOrders = () => {
+    return orders.filter(o => o.status === 'completed');
+  };
+
+  // Revenue tracking functions
+  const getTotalRevenue = () => {
+    return orders
+      .filter(o => o.paymentStatus === 'paid' && o.paidAmount)
+      .reduce((sum, o) => sum + (o.paidAmount || 0), 0);
+  };
+
+  const getCashRevenue = () => {
+    return orders
+      .filter(o => o.paymentStatus === 'paid' && o.paymentMethod === 'cash' && o.paidAmount)
+      .reduce((sum, o) => sum + (o.paidAmount || 0), 0);
+  };
+
+  const getOnlineRevenue = () => {
+    return orders
+      .filter(o => o.paymentStatus === 'paid' && ['hubtel', 'momo'].includes(o.paymentMethod) && o.paidAmount)
+      .reduce((sum, o) => sum + (o.paidAmount || 0), 0);
+  };
+
+  const getRevenueByDate = (date: Date) => {
+    const dayOrders = orders.filter(o => {
+      if (!o.paidAt || o.paymentStatus !== 'paid') return false;
+      const orderDate = new Date(o.paidAt);
+      return orderDate.toDateString() === date.toDateString();
+    });
+
+    const cash = dayOrders
+      .filter(o => o.paymentMethod === 'cash')
+      .reduce((sum, o) => sum + (o.paidAmount || 0), 0);
+
+    const online = dayOrders
+      .filter(o => ['hubtel', 'momo'].includes(o.paymentMethod))
+      .reduce((sum, o) => sum + (o.paidAmount || 0), 0);
+
+    return { cash, online, total: cash + online };
+  };
+
+  const getOrdersByDateRange = (startDate: Date, endDate: Date) => {
+    return orders.filter(o => {
+      const orderDate = new Date(o.createdAt);
+      return orderDate >= startDate && orderDate <= endDate;
+    });
+  };
+
   return (
     <OrderContext.Provider value={{
       orders,
@@ -110,6 +182,12 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
       getPendingOrders,
       getActiveOrders,
       getReadyOrders,
+      getCompletedOrders,
+      getTotalRevenue,
+      getCashRevenue,
+      getOnlineRevenue,
+      getRevenueByDate,
+      getOrdersByDateRange,
     }}>
       {children}
     </OrderContext.Provider>

@@ -145,6 +145,9 @@ const WashStation = () => {
       totalPrice: null,
       weight: null,
       loads: null,
+      paymentMethod: 'pending',
+      paymentStatus: 'pending',
+      orderType: 'walkin',
     });
 
     setSelectedOrder(newOrder);
