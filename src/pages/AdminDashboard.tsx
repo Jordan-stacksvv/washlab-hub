@@ -126,46 +126,50 @@ const AdminDashboard = () => {
   // Login Screen
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-20 left-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-20 right-20 w-96 h-96 bg-wash-orange/10 rounded-full blur-3xl" />
+      <div className="min-h-screen bg-gradient-to-br from-primary via-primary/90 to-primary/80 flex flex-col p-4">
+        {/* Header with Logo */}
+        <div className="w-full max-w-md mx-auto pt-6">
+          <a href="/" className="inline-block">
+            <Logo size="md" className="text-white" />
+          </a>
         </div>
         
-        <div className="w-full max-w-md relative z-10">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-wash-orange mb-6 shadow-2xl">
-              <Shield className="w-10 h-10 text-white" />
-            </div>
-            <h1 className="text-3xl font-display font-bold text-white mb-2">Admin Dashboard</h1>
-            <p className="text-slate-400">Enter your password to continue</p>
-          </div>
-
-          <div className="bg-slate-800/50 backdrop-blur-xl rounded-3xl border border-slate-700/50 p-8 shadow-2xl">
-            <div className="space-y-6">
-              <div>
-                <Label htmlFor="password" className="text-slate-300 text-sm font-medium">Admin Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                  placeholder="Enter password"
-                  className="mt-2 h-14 bg-slate-900/50 border-slate-600 text-white placeholder:text-slate-500 rounded-xl"
-                />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-full max-w-md">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/20 backdrop-blur mb-6">
+                <Shield className="w-10 h-10 text-white" />
               </div>
-              <Button 
-                onClick={handleLogin} 
-                className="w-full h-14 text-lg rounded-xl bg-gradient-to-r from-primary to-wash-orange hover:opacity-90 transition-opacity"
-              >
-                Access Dashboard
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
+              <h1 className="text-3xl font-display font-bold text-white mb-2">Admin Dashboard</h1>
+              <p className="text-white/70">Enter your password to continue</p>
             </div>
-            <p className="text-xs text-slate-500 mt-6 text-center">
-              Demo password: <span className="text-slate-400 font-mono">admin123</span>
-            </p>
+
+            <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8">
+              <div className="space-y-6">
+                <div>
+                  <Label htmlFor="password" className="text-white/80 text-sm font-medium">Admin Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                    placeholder="Enter password"
+                    className="mt-2 h-14 bg-white/10 border-white/20 text-white placeholder:text-white/40 rounded-xl"
+                  />
+                </div>
+                <Button 
+                  onClick={handleLogin} 
+                  className="w-full h-14 text-lg rounded-xl bg-white text-primary hover:bg-white/90 transition-all font-semibold"
+                >
+                  Access Dashboard
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </div>
+              <p className="text-xs text-white/50 mt-6 text-center">
+                Demo password: <span className="text-white/70 font-mono">admin123</span>
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -174,11 +178,13 @@ const AdminDashboard = () => {
 
   // Main Dashboard
   return (
-    <div className="min-h-screen bg-slate-900 flex">
+    <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-800/50 border-r border-slate-700/50 flex flex-col">
-        <div className="p-6 border-b border-slate-700/50">
-          <Logo size="sm" className="text-white" />
+      <aside className="w-64 bg-primary flex flex-col">
+        <div className="p-6 border-b border-white/10">
+          <a href="/">
+            <Logo size="sm" className="text-white" />
+          </a>
         </div>
         
         <nav className="flex-1 p-4 space-y-1">
@@ -188,8 +194,8 @@ const AdminDashboard = () => {
               onClick={() => setActiveTab(item.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${
                 activeTab === item.id
-                  ? 'bg-gradient-to-r from-primary/20 to-wash-orange/20 text-white border border-primary/30'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                  ? 'bg-white/20 text-white'
+                  : 'text-white/70 hover:text-white hover:bg-white/10'
               }`}
             >
               <item.icon className="w-5 h-5" />
@@ -198,10 +204,10 @@ const AdminDashboard = () => {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-slate-700/50 space-y-2">
+        <div className="p-4 border-t border-white/10 space-y-2">
           <Button 
             variant="ghost" 
-            className="w-full justify-start text-slate-400 hover:text-white hover:bg-slate-700/50"
+            className="w-full justify-start text-white/70 hover:text-white hover:bg-white/10"
             onClick={() => window.location.href = '/'}
           >
             <Home className="w-5 h-5 mr-3" />
@@ -209,7 +215,7 @@ const AdminDashboard = () => {
           </Button>
           <Button 
             variant="ghost" 
-            className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-500/10"
+            className="w-full justify-start text-red-300 hover:text-red-200 hover:bg-red-500/20"
             onClick={() => setIsLoggedIn(false)}
           >
             <LogOut className="w-5 h-5 mr-3" />
@@ -219,9 +225,9 @@ const AdminDashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        <header className="sticky top-0 z-10 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50 px-8 py-4">
-          <h1 className="text-2xl font-display font-bold text-white capitalize">{activeTab}</h1>
+      <main className="flex-1 overflow-auto bg-muted/30">
+        <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-xl border-b border-border px-8 py-4">
+          <h1 className="text-2xl font-display font-bold text-foreground capitalize">{activeTab}</h1>
         </header>
 
         <div className="p-8">
@@ -231,30 +237,30 @@ const AdminDashboard = () => {
               {/* Stats Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                  { label: 'Total Revenue', value: '₵12,450', change: '+12%', icon: DollarSign, color: 'emerald' },
-                  { label: 'Orders Today', value: '47', change: '+8%', icon: Package, color: 'blue' },
-                  { label: 'Active Staff', value: '6', change: '0%', icon: Users, color: 'purple' },
-                  { label: 'Branches', value: '3', change: '+1', icon: Building2, color: 'orange' },
+                  { label: 'Total Revenue', value: '₵12,450', change: '+12%', icon: DollarSign, bgColor: 'bg-emerald-100', iconColor: 'text-emerald-600' },
+                  { label: 'Orders Today', value: '47', change: '+8%', icon: Package, bgColor: 'bg-primary/10', iconColor: 'text-primary' },
+                  { label: 'Active Staff', value: '6', change: '0%', icon: Users, bgColor: 'bg-purple-100', iconColor: 'text-purple-600' },
+                  { label: 'Branches', value: '3', change: '+1', icon: Building2, bgColor: 'bg-orange-100', iconColor: 'text-orange-600' },
                 ].map((stat) => (
-                  <div key={stat.label} className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
+                  <div key={stat.label} className="bg-card rounded-2xl border border-border p-6">
                     <div className="flex items-center justify-between mb-4">
-                      <div className={`w-12 h-12 rounded-xl bg-${stat.color}-500/20 flex items-center justify-center`}>
-                        <stat.icon className={`w-6 h-6 text-${stat.color}-400`} />
+                      <div className={`w-12 h-12 rounded-xl ${stat.bgColor} flex items-center justify-center`}>
+                        <stat.icon className={`w-6 h-6 ${stat.iconColor}`} />
                       </div>
-                      <span className="text-emerald-400 text-sm font-medium flex items-center gap-1">
+                      <span className="text-emerald-600 text-sm font-medium flex items-center gap-1">
                         <TrendingUp className="w-4 h-4" />
                         {stat.change}
                       </span>
                     </div>
-                    <p className="text-3xl font-display font-bold text-white mb-1">{stat.value}</p>
-                    <p className="text-sm text-slate-400">{stat.label}</p>
+                    <p className="text-3xl font-display font-bold text-foreground mb-1">{stat.value}</p>
+                    <p className="text-sm text-muted-foreground">{stat.label}</p>
                   </div>
                 ))}
               </div>
 
               {/* Quick Actions */}
-              <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
-                <h3 className="text-lg font-display font-semibold text-white mb-4">Quick Actions</h3>
+              <div className="bg-card rounded-2xl border border-border p-6">
+                <h3 className="text-lg font-display font-semibold text-foreground mb-4">Quick Actions</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[
                     { label: 'Add Branch', icon: Building2, onClick: () => setActiveTab('branches') },
@@ -265,12 +271,12 @@ const AdminDashboard = () => {
                     <button
                       key={action.label}
                       onClick={action.onClick}
-                      className="flex flex-col items-center gap-3 p-4 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 transition-colors group"
+                      className="flex flex-col items-center gap-3 p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors group"
                     >
-                      <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                         <action.icon className="w-6 h-6 text-primary" />
                       </div>
-                      <span className="text-sm text-slate-300 font-medium">{action.label}</span>
+                      <span className="text-sm text-foreground font-medium">{action.label}</span>
                     </button>
                   ))}
                 </div>
@@ -280,40 +286,40 @@ const AdminDashboard = () => {
 
           {/* Branches Tab */}
           {activeTab === 'branches' && (
-            <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
+            <div className="bg-card rounded-2xl border border-border p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="font-display font-semibold text-lg text-white">Manage Branches</h2>
+                <h2 className="font-display font-semibold text-lg text-foreground">Manage Branches</h2>
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button className="rounded-xl bg-gradient-to-r from-primary to-wash-orange">
+                    <Button className="rounded-xl bg-primary hover:bg-primary/90">
                       <Plus className="w-4 h-4 mr-2" />
                       Add Branch
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="bg-slate-800 border-slate-700">
+                  <DialogContent>
                     <DialogHeader>
-                      <DialogTitle className="text-white">Add New Branch</DialogTitle>
+                      <DialogTitle>Add New Branch</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 pt-4">
                       <div>
-                        <Label className="text-slate-300">Branch Name</Label>
-                        <Input placeholder="e.g. Main Campus" className="mt-1 bg-slate-900 border-slate-600 text-white" />
+                        <Label>Branch Name</Label>
+                        <Input placeholder="e.g. Main Campus" className="mt-1" />
                       </div>
                       <div>
-                        <Label className="text-slate-300">Location</Label>
-                        <Input placeholder="e.g. Legon" className="mt-1 bg-slate-900 border-slate-600 text-white" />
+                        <Label>Location</Label>
+                        <Input placeholder="e.g. Legon" className="mt-1" />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <Label className="text-slate-300">Price per Load (₵)</Label>
-                          <Input type="number" defaultValue="25" className="mt-1 bg-slate-900 border-slate-600 text-white" />
+                          <Label>Price per Load (₵)</Label>
+                          <Input type="number" defaultValue="25" className="mt-1" />
                         </div>
                         <div>
-                          <Label className="text-slate-300">Delivery Fee (₵)</Label>
-                          <Input type="number" defaultValue="5" className="mt-1 bg-slate-900 border-slate-600 text-white" />
+                          <Label>Delivery Fee (₵)</Label>
+                          <Input type="number" defaultValue="5" className="mt-1" />
                         </div>
                       </div>
-                      <Button className="w-full rounded-xl bg-gradient-to-r from-primary to-wash-orange" onClick={() => toast.success('Branch added')}>
+                      <Button className="w-full rounded-xl bg-primary hover:bg-primary/90" onClick={() => toast.success('Branch added')}>
                         Add Branch
                       </Button>
                     </div>
@@ -323,34 +329,34 @@ const AdminDashboard = () => {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-slate-700">
-                      <TableHead className="text-slate-400">Name</TableHead>
-                      <TableHead className="text-slate-400">Location</TableHead>
-                      <TableHead className="text-slate-400">Price/Load</TableHead>
-                      <TableHead className="text-slate-400">Delivery Fee</TableHead>
-                      <TableHead className="text-slate-400">Status</TableHead>
-                      <TableHead className="text-slate-400 text-right">Actions</TableHead>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Price/Load</TableHead>
+                      <TableHead>Delivery Fee</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {mockBranches.map((branch) => (
-                      <TableRow key={branch.id} className="border-slate-700/50">
-                        <TableCell className="font-medium text-white">{branch.name}</TableCell>
-                        <TableCell className="text-slate-300">{branch.location}</TableCell>
-                        <TableCell className="text-slate-300">₵{branch.pricePerLoad}</TableCell>
-                        <TableCell className="text-slate-300">₵{branch.deliveryFee}</TableCell>
+                      <TableRow key={branch.id}>
+                        <TableCell className="font-medium">{branch.name}</TableCell>
+                        <TableCell>{branch.location}</TableCell>
+                        <TableCell>₵{branch.pricePerLoad}</TableCell>
+                        <TableCell>₵{branch.deliveryFee}</TableCell>
                         <TableCell>
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            branch.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-600/50 text-slate-400'
+                            branch.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'
                           }`}>
                             {branch.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
+                          <Button variant="ghost" size="icon">
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
+                          <Button variant="ghost" size="icon">
                             <Settings className="w-4 h-4" />
                           </Button>
                         </TableCell>
@@ -364,48 +370,48 @@ const AdminDashboard = () => {
 
           {/* Staff Tab */}
           {activeTab === 'staff' && (
-            <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
+            <div className="bg-card rounded-2xl border border-border p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="font-display font-semibold text-lg text-white">Manage Staff</h2>
+                <h2 className="font-display font-semibold text-lg text-foreground">Manage Staff</h2>
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button className="rounded-xl bg-gradient-to-r from-primary to-wash-orange">
+                    <Button className="rounded-xl bg-primary hover:bg-primary/90">
                       <Plus className="w-4 h-4 mr-2" />
                       Add Staff
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="bg-slate-800 border-slate-700">
+                  <DialogContent>
                     <DialogHeader>
-                      <DialogTitle className="text-white">Add New Staff</DialogTitle>
+                      <DialogTitle>Add New Staff</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 pt-4">
                       <div>
-                        <Label className="text-slate-300">Full Name</Label>
-                        <Input placeholder="e.g. John Doe" className="mt-1 bg-slate-900 border-slate-600 text-white" />
+                        <Label>Full Name</Label>
+                        <Input placeholder="e.g. John Doe" className="mt-1" />
                       </div>
                       <div>
-                        <Label className="text-slate-300">Phone Number</Label>
-                        <Input placeholder="0XX XXX XXXX" className="mt-1 bg-slate-900 border-slate-600 text-white" />
+                        <Label>Phone Number</Label>
+                        <Input placeholder="0XX XXX XXXX" className="mt-1" />
                       </div>
                       <div>
-                        <Label className="text-slate-300">Branch</Label>
-                        <select className="w-full mt-1 h-10 rounded-xl border border-slate-600 bg-slate-900 text-white px-3">
+                        <Label>Branch</Label>
+                        <select className="w-full mt-1 h-10 rounded-xl border border-input bg-background px-3">
                           {mockBranches.map(b => (
                             <option key={b.id} value={b.id}>{b.name}</option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <Label className="text-slate-300">Role</Label>
-                        <select className="w-full mt-1 h-10 rounded-xl border border-slate-600 bg-slate-900 text-white px-3">
+                        <Label>Role</Label>
+                        <select className="w-full mt-1 h-10 rounded-xl border border-input bg-background px-3">
                           <option value="receptionist">Receptionist</option>
                           <option value="admin">Admin</option>
                         </select>
                       </div>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-muted-foreground">
                         Staff will register their face during their first sign-in via Face ID
                       </p>
-                      <Button className="w-full rounded-xl bg-gradient-to-r from-primary to-wash-orange" onClick={() => toast.success('Staff added')}>
+                      <Button className="w-full rounded-xl bg-primary hover:bg-primary/90" onClick={() => toast.success('Staff added')}>
                         Add Staff
                       </Button>
                     </div>
@@ -415,34 +421,34 @@ const AdminDashboard = () => {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-slate-700">
-                      <TableHead className="text-slate-400">Name</TableHead>
-                      <TableHead className="text-slate-400">Phone</TableHead>
-                      <TableHead className="text-slate-400">Role</TableHead>
-                      <TableHead className="text-slate-400">Branch</TableHead>
-                      <TableHead className="text-slate-400">Status</TableHead>
-                      <TableHead className="text-slate-400 text-right">Actions</TableHead>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Branch</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {mockStaff.map((staff) => (
-                      <TableRow key={staff.id} className="border-slate-700/50">
-                        <TableCell className="font-medium text-white">{staff.name}</TableCell>
-                        <TableCell className="text-slate-300">{staff.phone}</TableCell>
-                        <TableCell className="text-slate-300 capitalize">{staff.role}</TableCell>
-                        <TableCell className="text-slate-300">{mockBranches.find(b => b.id === staff.branchId)?.name}</TableCell>
+                      <TableRow key={staff.id}>
+                        <TableCell className="font-medium">{staff.name}</TableCell>
+                        <TableCell>{staff.phone}</TableCell>
+                        <TableCell className="capitalize">{staff.role}</TableCell>
+                        <TableCell>{mockBranches.find(b => b.id === staff.branchId)?.name}</TableCell>
                         <TableCell>
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            staff.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-600/50 text-slate-400'
+                            staff.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'
                           }`}>
                             {staff.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
+                          <Button variant="ghost" size="icon">
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-400">
+                          <Button variant="ghost" size="icon" className="text-destructive">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </TableCell>

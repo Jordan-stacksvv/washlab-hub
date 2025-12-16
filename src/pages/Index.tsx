@@ -51,18 +51,8 @@ const Index = () => {
     <div className="min-h-screen bg-background overflow-hidden">
       <Navbar />
       
-      {/* Hero Section - Solid Blue Background */}
-      <section className="relative min-h-[85vh] bg-primary overflow-hidden">
-        {/* Decorative curved shapes */}
-        <div className="absolute inset-0">
-          <div className="absolute top-0 right-0 w-1/2 h-full">
-            <svg className="absolute right-0 top-0 h-full w-auto" viewBox="0 0 400 800" fill="none" preserveAspectRatio="xMaxYMid slice">
-              <ellipse cx="450" cy="400" rx="350" ry="500" fill="hsl(220 50% 55% / 0.4)" />
-              <ellipse cx="500" cy="350" rx="280" ry="400" fill="hsl(220 50% 60% / 0.3)" />
-            </svg>
-          </div>
-        </div>
-
+      {/* Hero Section - Images visible behind blue overlay */}
+      <section className="relative min-h-[85vh] overflow-hidden">
         {/* Slideshow images behind content */}
         <HeroSlideshow />
         
@@ -72,7 +62,7 @@ const Index = () => {
               Campus Laundry Made Simple
             </h1>
             
-            <p className="text-lg md:text-xl text-white/80 mb-10 max-w-lg leading-relaxed">
+            <p className="text-lg md:text-xl text-white/90 mb-10 max-w-lg leading-relaxed">
               Drop off your clothes, we handle the rest. Professional wash & dry service for students across Ghana.
             </p>
             
@@ -91,7 +81,7 @@ const Index = () => {
                 <Button 
                   size="lg" 
                   variant="outline" 
-                  className="px-8 py-6 text-base font-semibold rounded-lg border-2 border-white/30 text-white bg-white/10 hover:bg-white/20 hover:border-white/50 transition-all"
+                  className="px-8 py-6 text-base font-semibold rounded-lg border-2 border-white/40 text-white bg-white/10 hover:bg-white/20 hover:border-white/60 transition-all"
                 >
                   Track Order
                 </Button>
