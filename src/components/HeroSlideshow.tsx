@@ -16,24 +16,24 @@ export const HeroSlideshow = () => {
 
   return (
     <div className="absolute inset-0 overflow-hidden">
-      {/* Slideshow images */}
+      {/* Slideshow images - more visible */}
       {images.map((img, index) => (
         <div
           key={index}
           className={`absolute inset-0 transition-opacity duration-1000 ${
-            index === currentIndex ? 'opacity-20' : 'opacity-0'
+            index === currentIndex ? 'opacity-40' : 'opacity-0'
           }`}
         >
           <img 
             src={img} 
             alt="" 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover scale-110"
           />
         </div>
       ))}
       
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/95 to-primary/80" />
+      {/* Gradient overlay - allows images to show through */}
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/90 via-primary/80 to-primary/70" />
     </div>
   );
 };
