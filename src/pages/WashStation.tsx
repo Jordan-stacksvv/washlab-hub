@@ -252,118 +252,136 @@ const WashStation = () => {
     toast.success('WhatsApp opened');
   };
 
-  // Dashboard View
+  // Dashboard View - POS Style
   if (currentView === 'dashboard') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
-        {/* Header */}
-        <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
+      <div className="min-h-screen bg-muted/30">
+        {/* Top Bar - Branch, Clock */}
+        <header className="bg-primary text-primary-foreground px-6 py-4">
+          <div className="max-w-6xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-4">
               <Logo size="sm" />
-              <div className="flex items-center gap-3">
-                <Button variant="ghost" size="sm" onClick={() => window.location.href = '/staff'} className="text-slate-600">
-                  <Users className="w-4 h-4 mr-2" />
-                  Staff
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => window.location.href = '/'} className="text-slate-600">
-                  <Home className="w-4 h-4 mr-2" />
-                  Home
-                </Button>
+              <div className="h-8 w-px bg-primary-foreground/20" />
+              <div>
+                <p className="text-primary-foreground/70 text-xs">Branch</p>
+                <p className="font-semibold">Main Campus</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="sm" onClick={() => window.location.href = '/staff'} className="text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary-foreground/10">
+                <Users className="w-4 h-4 mr-2" />
+                Staff
+              </Button>
+              <div className="h-8 w-px bg-primary-foreground/20 hidden sm:block" />
+              <div className="text-right hidden sm:block">
+                <p className="text-primary-foreground/70 text-xs">{new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
+                <p className="font-mono font-semibold">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
               </div>
             </div>
           </div>
         </header>
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Search & Actions */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-8">
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+          {/* Search Bar */}
+          <div className="flex gap-3 mb-6">
             <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="Search by order code or phone number..."
-                className="pl-12 h-12 bg-white border-slate-200 rounded-xl text-base shadow-sm"
+                placeholder="Search by order code or phone..."
+                className="pl-12 h-12 bg-card border-border rounded-xl"
               />
             </div>
             <Button onClick={handleSearch} className="h-12 px-6 rounded-xl bg-primary hover:bg-primary/90">
               Search
             </Button>
-            <Button onClick={() => setCurrentView('walkin')} className="h-12 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white">
-              <Plus className="w-5 h-5 mr-2" />
-              New Walk-In
-            </Button>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
-                  <Package className="w-6 h-6 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-3xl font-bold text-slate-900">{pendingOrders.length}</p>
-                  <p className="text-sm text-slate-500">Pending Drop-off</p>
-                </div>
-              </div>
+          {/* MAIN ACTION BUTTONS - BIG TOUCH BUTTONS */}
+          <section className="mb-8">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Quick Actions</h2>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <button 
+                onClick={() => setCurrentView('walkin')}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl p-6 flex flex-col items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-primary/20 min-h-[120px]"
+              >
+                <Plus className="w-10 h-10" />
+                <span className="font-semibold">New Walk-in</span>
+              </button>
+              
+              <button 
+                className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl p-6 flex flex-col items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-emerald-500/20 min-h-[120px] relative"
+              >
+                <Package className="w-10 h-10" />
+                <span className="font-semibold">Check-in Order</span>
+                {pendingOrders.length > 0 && (
+                  <span className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white text-emerald-600 font-bold text-sm flex items-center justify-center">
+                    {pendingOrders.length}
+                  </span>
+                )}
+              </button>
+              
+              <button 
+                className="bg-amber-500 hover:bg-amber-600 text-white rounded-2xl p-6 flex flex-col items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-amber-500/20 min-h-[120px] relative"
+              >
+                <Sparkles className="w-10 h-10" />
+                <span className="font-semibold">In Progress</span>
+                {activeOrders.length > 0 && (
+                  <span className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white text-amber-600 font-bold text-sm flex items-center justify-center">
+                    {activeOrders.length}
+                  </span>
+                )}
+              </button>
+              
+              <button 
+                className="bg-violet-500 hover:bg-violet-600 text-white rounded-2xl p-6 flex flex-col items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-violet-500/20 min-h-[120px] relative"
+              >
+                <Check className="w-10 h-10" />
+                <span className="font-semibold">Ready Orders</span>
+                {readyOrders.length > 0 && (
+                  <span className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white text-violet-600 font-bold text-sm flex items-center justify-center">
+                    {readyOrders.length}
+                  </span>
+                )}
+              </button>
             </div>
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-3xl font-bold text-slate-900">{activeOrders.length}</p>
-                  <p className="text-sm text-slate-500">In Progress</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-                  <Check className="w-6 h-6 text-emerald-600" />
-                </div>
-                <div>
-                  <p className="text-3xl font-bold text-slate-900">{readyOrders.length}</p>
-                  <p className="text-sm text-slate-500">Ready for Pickup</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          </section>
 
-          {/* Pending Drop-offs */}
+          {/* Pending Drop-offs - ORDER CARDS */}
           {pendingOrders.length > 0 && (
             <section className="mb-8">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
-                  <Package className="w-4 h-4 text-amber-600" />
-                </div>
-                <h2 className="text-lg font-semibold text-slate-900">Pending Drop-off</h2>
-                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-sm font-medium">
-                  {pendingOrders.length}
-                </span>
-              </div>
-              <div className="space-y-3">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Pending Drop-off</h2>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {pendingOrders.map((order) => (
                   <div
                     key={order.id}
-                    className="bg-white rounded-xl border border-amber-200 p-5 flex items-center justify-between hover:shadow-md transition-shadow"
+                    className="bg-card rounded-2xl border-2 border-amber-200 p-5 hover:shadow-lg transition-all"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
-                        <Shirt className="w-6 h-6 text-amber-600" />
-                      </div>
+                    <div className="flex items-start justify-between mb-4">
                       <div>
-                        <p className="font-semibold text-slate-900">{order.code}</p>
-                        <p className="text-sm text-slate-500">{order.customerName} • {order.customerPhone}</p>
+                        <p className="text-xl font-bold text-foreground">{order.code}</p>
+                        <p className="text-sm text-muted-foreground">Bag Tag: —</p>
                       </div>
+                      <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">
+                        Pending
+                      </span>
                     </div>
-                    <Button onClick={() => handleCheckIn(order)} className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white">
+                    
+                    <div className="space-y-2 mb-4 text-sm">
+                      <p className="text-foreground font-medium">{order.customerName}</p>
+                      <p className="text-muted-foreground">{order.customerPhone}</p>
+                      <p className="text-muted-foreground">{order.hall} • {order.room}</p>
+                    </div>
+                    
+                    <Button 
+                      onClick={() => handleCheckIn(order)} 
+                      className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 text-white"
+                    >
                       Check In
-                      <ChevronRight className="w-4 h-4 ml-1" />
+                      <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </div>
                 ))}
@@ -371,50 +389,57 @@ const WashStation = () => {
             </section>
           )}
 
-          {/* Active Orders */}
+          {/* Active Orders - ORDER CARDS */}
           <section>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                <ClipboardList className="w-4 h-4 text-blue-600" />
-              </div>
-              <h2 className="text-lg font-semibold text-slate-900">Active Orders</h2>
-            </div>
-            <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Active Orders</h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {activeOrders.map((order) => (
                 <div
                   key={order.id}
                   onClick={() => { setSelectedOrder(order); setCurrentView('order-detail'); }}
-                  className="bg-white rounded-xl border border-slate-200 p-5 flex items-center justify-between hover:shadow-md hover:border-blue-200 transition-all cursor-pointer"
+                  className="bg-card rounded-2xl border border-border p-5 hover:border-primary/30 hover:shadow-lg transition-all cursor-pointer"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center">
-                      <Shirt className="w-6 h-6 text-slate-600" />
-                    </div>
+                  <div className="flex items-start justify-between mb-4">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-slate-900">{order.code}</p>
-                        {order.bagCardNumber && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-xs font-medium">
-                            <CreditCard className="w-3 h-3" />
-                            #{order.bagCardNumber}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-slate-500">{order.customerName} • {order.customerPhone}</p>
+                      <p className="text-xl font-bold text-foreground">{order.code}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Bag Tag: {order.bagCardNumber ? `#${order.bagCardNumber}` : '—'}
+                      </p>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
                     <StatusBadge status={order.status} size="sm" />
-                    <ChevronRight className="w-5 h-5 text-slate-400" />
+                  </div>
+                  
+                  {order.items.length > 0 && (
+                    <div className="space-y-1 mb-4 text-sm">
+                      {order.items.slice(0, 3).map((item, i) => (
+                        <p key={i} className="text-muted-foreground">• {item.category} – {item.quantity}</p>
+                      ))}
+                      {order.items.length > 3 && (
+                        <p className="text-muted-foreground">+ {order.items.length - 3} more</p>
+                      )}
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center justify-between pt-3 border-t border-border">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Status</p>
+                      <p className="font-semibold text-foreground capitalize">{order.status.replace('_', ' ')}</p>
+                    </div>
+                    {order.totalPrice && (
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Paid</p>
+                        <p className="font-bold text-primary">₵{order.totalPrice}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
               {activeOrders.length === 0 && (
-                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                    <ClipboardList className="w-8 h-8 text-slate-400" />
+                <div className="col-span-full bg-card rounded-2xl border border-border p-12 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+                    <ClipboardList className="w-8 h-8 text-muted-foreground" />
                   </div>
-                  <p className="text-slate-500">No active orders at the moment</p>
+                  <p className="text-muted-foreground">No active orders at the moment</p>
                 </div>
               )}
             </div>

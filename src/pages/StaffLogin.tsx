@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { 
   Camera, 
   UserCheck, 
@@ -12,10 +11,12 @@ import {
   AlertCircle,
   Fingerprint,
   Clock,
-  ArrowRight,
   ArrowLeft,
-  Droplets,
-  ChevronRight
+  ClipboardCheck,
+  UserPlus,
+  Sparkles,
+  CheckCircle2,
+  Package
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -23,6 +24,7 @@ interface ActiveStaff {
   id: string;
   name: string;
   signedInAt: Date;
+  avatar: string;
 }
 
 const StaffLogin = () => {
@@ -46,10 +48,12 @@ const StaffLogin = () => {
     setIsScanning(true);
     
     setTimeout(() => {
+      const staffNames = ['Portia', 'J.J Nortey', 'Kwame', 'Ama'];
       const mockStaff = {
         id: `staff-${Date.now()}`,
-        name: mode === 'add' ? 'J.J Nortey' : 'Portia',
+        name: mode === 'add' ? staffNames[activeStaff.length % staffNames.length] : 'Portia',
         signedInAt: new Date(),
+        avatar: mode === 'add' ? staffNames[activeStaff.length % staffNames.length][0] : 'P',
       };
 
       if (mode === 'signin' || mode === 'add') {
@@ -75,58 +79,51 @@ const StaffLogin = () => {
   // Branch PIN Login Screen
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary via-primary/95 to-primary flex flex-col">
-        {/* Header with Logo */}
-        <header className="p-4 md:p-6 flex items-center justify-between">
+      <div className="min-h-screen bg-background flex flex-col">
+        {/* Clean Header */}
+        <header className="px-6 py-4 flex items-center justify-between border-b border-border">
           <Link to="/" className="flex items-center gap-2">
-            <Logo size="md" />
+            <Logo size="sm" />
           </Link>
           <Link 
             to="/" 
-            className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Back to Home</span>
+            Home
           </Link>
         </header>
         
-        <div className="flex-1 flex items-center justify-center p-4">
-          <div className="w-full max-w-md">
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="w-full max-w-sm">
             <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white/10 backdrop-blur-sm mb-6">
-                <Droplets className="w-10 h-10 text-white" />
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
+                <Users className="w-8 h-8 text-primary" />
               </div>
-              <h1 className="text-3xl md:text-4xl font-display font-bold text-white mb-3">Staff Portal</h1>
-              <p className="text-white/60 text-lg">Enter your branch PIN to access the dashboard</p>
+              <h1 className="text-2xl font-display font-bold text-foreground mb-2">Staff Portal</h1>
+              <p className="text-muted-foreground">Enter your branch PIN to continue</p>
             </div>
 
-            <div className="bg-white rounded-3xl p-8 shadow-2xl shadow-primary/30">
-              <div className="space-y-6">
-                <div>
-                  <Label htmlFor="pin" className="text-foreground text-sm font-medium mb-2 block">Branch PIN</Label>
-                  <Input
-                    id="pin"
-                    type="password"
-                    value={branchPin}
-                    onChange={(e) => setBranchPin(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleBranchLogin()}
-                    placeholder="• • • •"
-                    className="h-14 text-center text-2xl tracking-[0.5em] rounded-xl border-2 border-border focus:border-primary"
-                    maxLength={4}
-                  />
-                </div>
-                <Button 
-                  onClick={handleBranchLogin} 
-                  className="w-full h-14 text-lg rounded-xl bg-primary hover:bg-primary/90 font-semibold"
-                >
-                  Access Dashboard
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground mt-6 text-center">
-                Demo PIN: <span className="font-mono font-semibold text-primary">1234</span>
-              </p>
+            <div className="space-y-4">
+              <Input
+                type="password"
+                value={branchPin}
+                onChange={(e) => setBranchPin(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleBranchLogin()}
+                placeholder="• • • •"
+                className="h-14 text-center text-2xl tracking-[0.5em] rounded-xl border-2 focus:border-primary"
+                maxLength={4}
+              />
+              <Button 
+                onClick={handleBranchLogin} 
+                className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 font-semibold"
+              >
+                Continue
+              </Button>
             </div>
+            <p className="text-xs text-muted-foreground mt-6 text-center">
+              Demo PIN: <span className="font-mono font-semibold text-primary">1234</span>
+            </p>
           </div>
         </div>
       </div>
@@ -136,49 +133,49 @@ const StaffLogin = () => {
   // Face ID Sign In Screen (No active staff)
   if (activeStaff.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary via-primary/95 to-primary flex flex-col">
-        <header className="p-4 md:p-6 flex items-center justify-between">
+      <div className="min-h-screen bg-background flex flex-col">
+        <header className="px-6 py-4 flex items-center justify-between border-b border-border">
           <Link to="/">
-            <Logo size="md" />
+            <Logo size="sm" />
           </Link>
           <Link 
             to="/" 
-            className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Back to Home</span>
+            Home
           </Link>
         </header>
         
-        <div className="flex-1 flex items-center justify-center p-4">
-          <div className="w-full max-w-md">
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="w-full max-w-sm">
             {isScanning ? (
-              <div className="bg-white rounded-3xl p-10 text-center shadow-2xl shadow-primary/30">
-                <div className="relative w-40 h-40 mx-auto mb-8">
-                  <div className="absolute inset-0 rounded-full bg-primary/20 animate-pulse" />
-                  <div className="absolute inset-4 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Camera className="w-16 h-16 text-primary animate-pulse" />
+              <div className="text-center">
+                <div className="relative w-48 h-48 mx-auto mb-8">
+                  <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+                  <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+                  <div className="absolute inset-8 rounded-full bg-primary/5 flex items-center justify-center">
+                    <Camera className="w-16 h-16 text-primary" />
                   </div>
-                  <div className="absolute inset-0 rounded-full border-4 border-primary/30 animate-ping" style={{ animationDuration: '2s' }} />
                 </div>
-                <h2 className="text-2xl font-display font-bold text-foreground mb-2">Scanning Face...</h2>
+                <h2 className="text-xl font-display font-bold text-foreground mb-2">Scanning Face...</h2>
                 <p className="text-muted-foreground">Please look directly at the camera</p>
               </div>
             ) : (
-              <div className="bg-white rounded-3xl p-10 text-center shadow-2xl shadow-primary/30">
-                <div className="w-20 h-20 mx-auto rounded-2xl bg-amber-100 flex items-center justify-center mb-6">
-                  <AlertCircle className="w-10 h-10 text-amber-600" />
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-100 flex items-center justify-center mb-4">
+                  <AlertCircle className="w-8 h-8 text-amber-600" />
                 </div>
-                <h2 className="text-2xl font-display font-bold text-foreground mb-2">No Active Staff</h2>
+                <h2 className="text-xl font-display font-bold text-foreground mb-2">No Active Staff</h2>
                 <p className="text-muted-foreground mb-8">
                   Sign in with Face ID to start your shift
                 </p>
                 <Button 
                   onClick={() => startFaceScan('signin')} 
                   size="lg" 
-                  className="w-full h-14 text-lg rounded-xl bg-primary hover:bg-primary/90 font-semibold"
+                  className="w-full h-14 rounded-xl bg-primary hover:bg-primary/90 font-semibold gap-3"
                 >
-                  <Fingerprint className="w-6 h-6 mr-3" />
+                  <Fingerprint className="w-6 h-6" />
                   Sign In with Face ID
                 </Button>
               </div>
@@ -189,118 +186,193 @@ const StaffLogin = () => {
     );
   }
 
-  // Active Staff Dashboard
+  // POS-Style Staff Dashboard
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-primary/5">
-      {/* Header */}
-      <header className="bg-white border-b border-border sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+    <div className="min-h-screen bg-muted/30">
+      {/* Top Bar - Branch, Staff Avatars, Clock */}
+      <header className="bg-primary text-primary-foreground px-6 py-4">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
             <Link to="/">
               <Logo size="sm" />
             </Link>
-            <Button
-              className="bg-primary hover:bg-primary/90 rounded-xl font-semibold"
-              onClick={() => window.location.href = '/washstation'}
-            >
-              Go to Dashboard
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {isScanning ? (
-          <div className="bg-white rounded-3xl p-10 text-center shadow-lg border border-border">
-            <div className="relative w-40 h-40 mx-auto mb-8">
-              <div className="absolute inset-0 rounded-full bg-primary/20 animate-pulse" />
-              <div className="absolute inset-4 rounded-full bg-primary/10 flex items-center justify-center">
-                <Camera className="w-16 h-16 text-primary animate-pulse" />
-              </div>
+            <div className="h-8 w-px bg-primary-foreground/20" />
+            <div>
+              <p className="text-primary-foreground/70 text-xs">Branch</p>
+              <p className="font-semibold">Main Campus</p>
             </div>
-            <h2 className="text-2xl font-display font-bold text-foreground mb-2">Scanning Face...</h2>
-            <p className="text-muted-foreground">
-              {scanMode === 'add' ? 'Adding new attendant' : 
-               scanMode === 'signout' ? 'Confirming sign out' : 'Please look at the camera'}
-            </p>
           </div>
-        ) : (
-          <>
-            {/* Branch Info Banner */}
-            <div className="bg-primary rounded-2xl p-6 mb-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-white/70 text-sm mb-1">Currently at</p>
-                  <h2 className="text-2xl font-display font-bold">Main Campus Branch</h2>
-                </div>
-                <div className="text-right">
-                  <p className="text-white/70 text-sm mb-1">{new Date().toLocaleDateString()}</p>
-                  <p className="text-xl font-semibold">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Active Staff List */}
-            <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-border">
-              <h2 className="font-display font-bold text-lg text-foreground mb-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-primary" />
-                </div>
-                Active Attendants ({activeStaff.length})
-              </h2>
-              <div className="space-y-3">
+          
+          {/* Active Staff Avatars */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-primary-foreground/70 text-sm hidden sm:inline">Staff on duty:</span>
+              <div className="flex -space-x-2">
                 {activeStaff.map((staff) => (
                   <div
                     key={staff.id}
-                    className="flex items-center justify-between p-4 rounded-xl bg-emerald-50 border border-emerald-200"
+                    className="w-9 h-9 rounded-full bg-primary-foreground text-primary font-bold flex items-center justify-center text-sm border-2 border-primary"
+                    title={staff.name}
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-                        <UserCheck className="w-6 h-6 text-emerald-600" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-foreground">{staff.name}</p>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          Signed in at {staff.signedInAt.toLocaleTimeString()}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">
-                      Active
-                    </span>
+                    {staff.avatar}
                   </div>
                 ))}
               </div>
             </div>
-
-            {/* Actions */}
-            <div className="grid grid-cols-2 gap-4">
-              <Button 
-                onClick={() => startFaceScan('add')} 
-                variant="outline"
-                className="h-20 rounded-2xl flex-col gap-2 border-2 hover:border-primary hover:bg-primary/5"
-              >
-                <Users className="w-6 h-6 text-primary" />
-                <span className="font-medium">Add Attendant</span>
-              </Button>
-              <Button 
-                onClick={() => startFaceScan('signout')} 
-                variant="outline"
-                className="h-20 rounded-2xl flex-col gap-2 border-2 border-red-200 hover:border-red-400 hover:bg-red-50 text-red-600 hover:text-red-700"
-              >
-                <UserMinus className="w-6 h-6" />
-                <span className="font-medium">Sign Out</span>
-              </Button>
+            <div className="h-8 w-px bg-primary-foreground/20 hidden sm:block" />
+            <div className="text-right hidden sm:block">
+              <p className="text-primary-foreground/70 text-xs">{new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
+              <p className="font-mono font-semibold">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
             </div>
+          </div>
+        </div>
+      </header>
 
-            <p className="text-xs text-muted-foreground text-center mt-8">
-              Face ID is required for attendance tracking and payment authorization
-            </p>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+        {isScanning ? (
+          <div className="bg-card rounded-2xl border border-border p-12 text-center">
+            <div className="relative w-40 h-40 mx-auto mb-6">
+              <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+              <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+              <div className="absolute inset-8 rounded-full bg-primary/5 flex items-center justify-center">
+                <Camera className="w-12 h-12 text-primary" />
+              </div>
+            </div>
+            <h2 className="text-xl font-display font-bold text-foreground mb-2">
+              {scanMode === 'add' ? 'Adding Staff...' : 'Confirming Sign Out...'}
+            </h2>
+            <p className="text-muted-foreground">Please look at the camera</p>
+          </div>
+        ) : (
+          <>
+            {/* MAIN ACTION BUTTONS - BIG TOUCH BUTTONS */}
+            <section className="mb-8">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Quick Actions</h2>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <button 
+                  onClick={() => window.location.href = '/washstation'}
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl p-6 flex flex-col items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-emerald-500/20 min-h-[140px]"
+                >
+                  <ClipboardCheck className="w-10 h-10" />
+                  <span className="font-semibold text-lg">Check-in Order</span>
+                </button>
+                
+                <button 
+                  onClick={() => window.location.href = '/washstation'}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl p-6 flex flex-col items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-primary/20 min-h-[140px]"
+                >
+                  <UserPlus className="w-10 h-10" />
+                  <span className="font-semibold text-lg">New Walk-in</span>
+                </button>
+                
+                <button 
+                  onClick={() => window.location.href = '/washstation'}
+                  className="bg-amber-500 hover:bg-amber-600 text-white rounded-2xl p-6 flex flex-col items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-amber-500/20 min-h-[140px]"
+                >
+                  <Sparkles className="w-10 h-10" />
+                  <span className="font-semibold text-lg">Orders in Wash</span>
+                </button>
+                
+                <button 
+                  onClick={() => window.location.href = '/washstation'}
+                  className="bg-violet-500 hover:bg-violet-600 text-white rounded-2xl p-6 flex flex-col items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-violet-500/20 min-h-[140px]"
+                >
+                  <CheckCircle2 className="w-10 h-10" />
+                  <span className="font-semibold text-lg">Ready Orders</span>
+                </button>
+              </div>
+            </section>
+
+            {/* Active Staff Section */}
+            <section className="mb-8">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Staff Attendance</h2>
+              <div className="bg-card rounded-2xl border border-border p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Users className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">Active Staff</p>
+                      <p className="text-sm text-muted-foreground">{activeStaff.length} currently signed in</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-3 mb-6">
+                  {activeStaff.map((staff) => (
+                    <div
+                      key={staff.id}
+                      className="flex items-center justify-between p-4 rounded-xl bg-emerald-50 border border-emerald-200"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-lg">
+                          {staff.avatar}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-foreground">{staff.name}</p>
+                          <p className="text-sm text-muted-foreground flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            Signed in at {staff.signedInAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">
+                        Active
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Attendance Actions */}
+                <div className="grid grid-cols-2 gap-4">
+                  <Button 
+                    onClick={() => startFaceScan('add')} 
+                    variant="outline"
+                    className="h-14 rounded-xl border-2 border-dashed hover:border-primary hover:bg-primary/5 gap-2"
+                  >
+                    <UserPlus className="w-5 h-5 text-primary" />
+                    <span className="font-medium">Add Staff</span>
+                  </Button>
+                  <Button 
+                    onClick={() => startFaceScan('signout')} 
+                    variant="outline"
+                    className="h-14 rounded-xl border-2 border-dashed border-destructive/30 hover:border-destructive hover:bg-destructive/5 text-destructive gap-2"
+                  >
+                    <UserMinus className="w-5 h-5" />
+                    <span className="font-medium">Sign Out</span>
+                  </Button>
+                </div>
+              </div>
+            </section>
+
+            {/* Quick Stats */}
+            <section>
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Today's Summary</h2>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label: 'Pending', value: '3', color: 'bg-amber-100 text-amber-700' },
+                  { label: 'In Progress', value: '5', color: 'bg-primary/10 text-primary' },
+                  { label: 'Ready', value: '2', color: 'bg-emerald-100 text-emerald-700' },
+                  { label: 'Completed', value: '12', color: 'bg-muted text-muted-foreground' },
+                ].map((stat) => (
+                  <div key={stat.label} className="bg-card rounded-xl border border-border p-4">
+                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+                    <p className={`text-sm font-medium px-2 py-0.5 rounded-full inline-block mt-1 ${stat.color}`}>{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
           </>
         )}
       </main>
+
+      {/* Footer Note */}
+      <footer className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+        <p className="text-xs text-muted-foreground text-center">
+          Face ID is required for attendance tracking and payment authorization
+        </p>
+      </footer>
     </div>
   );
 };
