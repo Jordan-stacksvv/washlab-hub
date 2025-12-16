@@ -38,7 +38,8 @@ import {
   Package,
   ArrowRight,
   ArrowLeft,
-  LayoutDashboard
+  LayoutDashboard,
+  Shield
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -127,36 +128,35 @@ const AdminDashboard = () => {
   // Login Screen
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary via-primary to-primary/90 flex flex-col">
-        {/* Header */}
-        <header className="p-6">
-          <Link to="/" className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="font-medium">Back to Home</span>
+      <div className="min-h-screen bg-gradient-to-br from-primary via-primary/95 to-primary flex flex-col">
+        {/* Header with Logo */}
+        <header className="p-4 md:p-6 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <Logo size="md" />
+          </Link>
+          <Link 
+            to="/" 
+            className="inline-flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Back to Home</span>
           </Link>
         </header>
         
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="w-full max-w-md">
-            {/* Logo */}
-            <div className="flex justify-center mb-8">
-              <Link to="/">
-                <Logo size="lg" />
-              </Link>
-            </div>
-
             <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 backdrop-blur mb-4">
-                <LayoutDashboard className="w-8 h-8 text-white" />
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white/10 backdrop-blur-sm mb-6">
+                <Shield className="w-10 h-10 text-white" />
               </div>
-              <h1 className="text-3xl font-display font-bold text-white mb-2">Admin Dashboard</h1>
-              <p className="text-white/70">Enter your password to continue</p>
+              <h1 className="text-3xl md:text-4xl font-display font-bold text-white mb-3">Admin Dashboard</h1>
+              <p className="text-white/60 text-lg">Enter your password to continue</p>
             </div>
 
-            <div className="bg-white rounded-3xl p-8 shadow-2xl">
+            <div className="bg-white rounded-3xl p-8 shadow-2xl shadow-primary/30">
               <div className="space-y-6">
                 <div>
-                  <Label htmlFor="password" className="text-foreground text-sm font-medium">Admin Password</Label>
+                  <Label htmlFor="password" className="text-foreground text-sm font-medium mb-2 block">Admin Password</Label>
                   <Input
                     id="password"
                     type="password"
@@ -164,7 +164,7 @@ const AdminDashboard = () => {
                     onChange={(e) => setLoginPassword(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                     placeholder="Enter password"
-                    className="mt-2 h-14 rounded-xl"
+                    className="h-14 rounded-xl border-2 border-border focus:border-primary"
                   />
                 </div>
                 <Button 
@@ -176,7 +176,7 @@ const AdminDashboard = () => {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-6 text-center">
-                Demo password: <span className="font-mono font-medium">admin123</span>
+                Demo password: <span className="font-mono font-semibold text-primary">admin123</span>
               </p>
             </div>
           </div>
@@ -189,14 +189,14 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-primary flex flex-col">
+      <aside className="w-64 bg-primary flex flex-col fixed h-screen">
         <div className="p-6 border-b border-white/10">
-          <a href="/">
-            <Logo size="sm" className="text-white" />
-          </a>
+          <Link to="/">
+            <Logo size="sm" />
+          </Link>
         </div>
         
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {sidebarItems.map((item) => (
             <button
               key={item.id}
@@ -234,7 +234,7 @@ const AdminDashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto bg-muted/30">
+      <main className="flex-1 ml-64 overflow-auto bg-muted/30">
         <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-xl border-b border-border px-8 py-4">
           <h1 className="text-2xl font-display font-bold text-foreground capitalize">{activeTab}</h1>
         </header>
@@ -417,11 +417,8 @@ const AdminDashboard = () => {
                           <option value="admin">Admin</option>
                         </select>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Staff will register their face during their first sign-in via Face ID
-                      </p>
-                      <Button className="w-full rounded-xl bg-primary hover:bg-primary/90" onClick={() => toast.success('Staff added')}>
-                        Add Staff
+                      <Button className="w-full rounded-xl bg-primary hover:bg-primary/90" onClick={() => toast.success('Staff member added')}>
+                        Add Staff Member
                       </Button>
                     </div>
                   </DialogContent>
@@ -433,8 +430,8 @@ const AdminDashboard = () => {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Phone</TableHead>
-                      <TableHead>Role</TableHead>
                       <TableHead>Branch</TableHead>
+                      <TableHead>Role</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -444,8 +441,8 @@ const AdminDashboard = () => {
                       <TableRow key={staff.id}>
                         <TableCell className="font-medium">{staff.name}</TableCell>
                         <TableCell>{staff.phone}</TableCell>
-                        <TableCell className="capitalize">{staff.role}</TableCell>
                         <TableCell>{mockBranches.find(b => b.id === staff.branchId)?.name}</TableCell>
+                        <TableCell className="capitalize">{staff.role}</TableCell>
                         <TableCell>
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                             staff.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'
@@ -457,7 +454,7 @@ const AdminDashboard = () => {
                           <Button variant="ghost" size="icon">
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="text-destructive">
+                          <Button variant="ghost" size="icon">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </TableCell>
@@ -471,74 +468,84 @@ const AdminDashboard = () => {
 
           {/* Attendance Tab */}
           {activeTab === 'attendance' && (
-            <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-display font-semibold text-lg text-white">Attendance Logs</h2>
-                <div className="flex gap-3">
-                  <Input type="date" defaultValue="2025-01-15" className="w-auto bg-slate-900 border-slate-600 text-white rounded-xl" />
-                  <select className="h-10 rounded-xl border border-slate-600 bg-slate-900 text-white px-3">
-                    <option>All Branches</option>
+            <div className="space-y-6">
+              <div className="flex gap-4 flex-wrap">
+                <div>
+                  <Label className="text-sm text-muted-foreground">Date</Label>
+                  <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="mt-1 w-48" />
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">Branch</Label>
+                  <select 
+                    value={selectedBranch} 
+                    onChange={(e) => setSelectedBranch(e.target.value)}
+                    className="mt-1 h-10 rounded-xl border border-input bg-background px-3 w-48"
+                  >
                     {mockBranches.map(b => (
-                      <option key={b.id}>{b.name}</option>
+                      <option key={b.id} value={b.name}>{b.name}</option>
                     ))}
                   </select>
                 </div>
               </div>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-slate-700">
-                      <TableHead className="text-slate-400">Staff Name</TableHead>
-                      <TableHead className="text-slate-400">Action</TableHead>
-                      <TableHead className="text-slate-400">Timestamp</TableHead>
-                      <TableHead className="text-slate-400">Branch</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {mockAttendance.map((log) => (
-                      <TableRow key={log.id} className="border-slate-700/50">
-                        <TableCell className="font-medium text-white">{log.staffName}</TableCell>
-                        <TableCell>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            log.action === 'sign_in' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
-                          }`}>
-                            {log.action === 'sign_in' ? 'Sign In' : 'Sign Out'}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-slate-300">{log.timestamp}</TableCell>
-                        <TableCell className="text-slate-300">{log.branch}</TableCell>
+
+              <div className="bg-card rounded-2xl border border-border p-6">
+                <h2 className="font-display font-semibold text-lg text-foreground mb-4">Attendance Log</h2>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Staff</TableHead>
+                        <TableHead>Action</TableHead>
+                        <TableHead>Time</TableHead>
+                        <TableHead>Branch</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {mockAttendance.map((log) => (
+                        <TableRow key={log.id}>
+                          <TableCell className="font-medium">{log.staffName}</TableCell>
+                          <TableCell>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              log.action === 'sign_in' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                            }`}>
+                              {log.action === 'sign_in' ? 'Sign In' : 'Sign Out'}
+                            </span>
+                          </TableCell>
+                          <TableCell>{log.timestamp}</TableCell>
+                          <TableCell>{log.branch}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
           )}
 
           {/* Vouchers Tab */}
           {activeTab === 'vouchers' && (
-            <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
+            <div className="bg-card rounded-2xl border border-border p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="font-display font-semibold text-lg text-white">Manage Vouchers</h2>
+                <h2 className="font-display font-semibold text-lg text-foreground">Manage Vouchers</h2>
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button className="rounded-xl bg-gradient-to-r from-primary to-wash-orange">
+                    <Button className="rounded-xl bg-primary hover:bg-primary/90">
                       <Plus className="w-4 h-4 mr-2" />
                       Create Voucher
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="bg-slate-800 border-slate-700">
+                  <DialogContent>
                     <DialogHeader>
-                      <DialogTitle className="text-white">Create New Voucher</DialogTitle>
+                      <DialogTitle>Create New Voucher</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 pt-4">
                       <div>
-                        <Label className="text-slate-300">Voucher Code</Label>
-                        <Input placeholder="e.g. SUMMER20" className="mt-1 bg-slate-900 border-slate-600 text-white uppercase" />
+                        <Label>Voucher Code</Label>
+                        <Input placeholder="e.g. SAVE20" className="mt-1" />
                       </div>
                       <div>
-                        <Label className="text-slate-300">Discount Type</Label>
-                        <select className="w-full mt-1 h-10 rounded-xl border border-slate-600 bg-slate-900 text-white px-3">
+                        <Label>Discount Type</Label>
+                        <select className="w-full mt-1 h-10 rounded-xl border border-input bg-background px-3">
                           <option value="percentage">Percentage Off</option>
                           <option value="fixed">Fixed Amount</option>
                           <option value="free_wash">Free Wash</option>
@@ -546,19 +553,19 @@ const AdminDashboard = () => {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <Label className="text-slate-300">Value</Label>
-                          <Input type="number" placeholder="10" className="mt-1 bg-slate-900 border-slate-600 text-white" />
+                          <Label>Value</Label>
+                          <Input type="number" placeholder="e.g. 20" className="mt-1" />
                         </div>
                         <div>
-                          <Label className="text-slate-300">Usage Limit</Label>
-                          <Input type="number" placeholder="100" className="mt-1 bg-slate-900 border-slate-600 text-white" />
+                          <Label>Usage Limit</Label>
+                          <Input type="number" placeholder="e.g. 100" className="mt-1" />
                         </div>
                       </div>
                       <div>
-                        <Label className="text-slate-300">Valid Until</Label>
-                        <Input type="date" className="mt-1 bg-slate-900 border-slate-600 text-white" />
+                        <Label>Valid Until</Label>
+                        <Input type="date" className="mt-1" />
                       </div>
-                      <Button className="w-full rounded-xl bg-gradient-to-r from-primary to-wash-orange" onClick={() => toast.success('Voucher created')}>
+                      <Button className="w-full rounded-xl bg-primary hover:bg-primary/90" onClick={() => toast.success('Voucher created')}>
                         Create Voucher
                       </Button>
                     </div>
@@ -568,37 +575,40 @@ const AdminDashboard = () => {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-slate-700">
-                      <TableHead className="text-slate-400">Code</TableHead>
-                      <TableHead className="text-slate-400">Discount</TableHead>
-                      <TableHead className="text-slate-400">Usage</TableHead>
-                      <TableHead className="text-slate-400">Valid Until</TableHead>
-                      <TableHead className="text-slate-400">Status</TableHead>
-                      <TableHead className="text-slate-400 text-right">Actions</TableHead>
+                    <TableRow>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Value</TableHead>
+                      <TableHead>Used/Limit</TableHead>
+                      <TableHead>Expires</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {mockVouchers.map((voucher) => (
-                      <TableRow key={voucher.id} className="border-slate-700/50">
-                        <TableCell className="font-mono font-medium text-white">{voucher.code}</TableCell>
-                        <TableCell className="text-slate-300">
+                      <TableRow key={voucher.id}>
+                        <TableCell className="font-mono font-medium">{voucher.code}</TableCell>
+                        <TableCell className="capitalize">{voucher.discountType.replace('_', ' ')}</TableCell>
+                        <TableCell>
                           {voucher.discountType === 'percentage' ? `${voucher.discountValue}%` : 
-                           voucher.discountType === 'free_wash' ? 'Free Wash' : `₵${voucher.discountValue}`}
+                           voucher.discountType === 'free_wash' ? `${voucher.discountValue} wash` : 
+                           `₵${voucher.discountValue}`}
                         </TableCell>
-                        <TableCell className="text-slate-300">{voucher.usedCount}/{voucher.usageLimit}</TableCell>
-                        <TableCell className="text-slate-300">{voucher.validTo}</TableCell>
+                        <TableCell>{voucher.usedCount}/{voucher.usageLimit}</TableCell>
+                        <TableCell>{voucher.validTo}</TableCell>
                         <TableCell>
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            voucher.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-600/50 text-slate-400'
+                            voucher.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'
                           }`}>
                             {voucher.isActive ? 'Active' : 'Expired'}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
+                          <Button variant="ghost" size="icon">
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-400">
+                          <Button variant="ghost" size="icon">
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </TableCell>
@@ -612,44 +622,60 @@ const AdminDashboard = () => {
 
           {/* Loyalty Tab */}
           {activeTab === 'loyalty' && (
-            <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-display font-semibold text-lg text-white">Customer Loyalty</h2>
-                <Input placeholder="Search by phone or name" className="w-64 bg-slate-900 border-slate-600 text-white rounded-xl" />
+            <div className="space-y-6">
+              <div className="bg-primary/5 rounded-2xl p-6 border border-primary/20">
+                <h3 className="font-display font-semibold text-lg text-foreground mb-2">Loyalty Program</h3>
+                <p className="text-muted-foreground mb-4">
+                  Customers earn 1 point per completed wash. 10 points = 1 free wash voucher.
+                </p>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="bg-white rounded-xl p-4">
+                    <p className="text-3xl font-display font-bold text-primary">156</p>
+                    <p className="text-sm text-muted-foreground">Total Members</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-4">
+                    <p className="text-3xl font-display font-bold text-primary">23</p>
+                    <p className="text-sm text-muted-foreground">Free Washes Redeemed</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-4">
+                    <p className="text-3xl font-display font-bold text-primary">842</p>
+                    <p className="text-sm text-muted-foreground">Total Points Earned</p>
+                  </div>
+                </div>
               </div>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-slate-700">
-                      <TableHead className="text-slate-400">Customer</TableHead>
-                      <TableHead className="text-slate-400">Phone</TableHead>
-                      <TableHead className="text-slate-400">Points</TableHead>
-                      <TableHead className="text-slate-400">Orders</TableHead>
-                      <TableHead className="text-slate-400">Total Spent</TableHead>
-                      <TableHead className="text-slate-400 text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {mockCustomers.map((customer) => (
-                      <TableRow key={customer.phone} className="border-slate-700/50">
-                        <TableCell className="font-medium text-white">{customer.name}</TableCell>
-                        <TableCell className="text-slate-300">{customer.phone}</TableCell>
-                        <TableCell>
-                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400">
-                            {customer.loyaltyPoints} pts
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-slate-300">{customer.totalOrders}</TableCell>
-                        <TableCell className="text-slate-300">₵{customer.totalSpent}</TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
-                            View History
-                          </Button>
-                        </TableCell>
+
+              <div className="bg-card rounded-2xl border border-border p-6">
+                <h2 className="font-display font-semibold text-lg text-foreground mb-4">Customer Loyalty</h2>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Points</TableHead>
+                        <TableHead>Total Orders</TableHead>
+                        <TableHead>Total Spent</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {mockCustomers.map((customer) => (
+                        <TableRow key={customer.phone}>
+                          <TableCell className="font-medium">{customer.name}</TableCell>
+                          <TableCell>{customer.phone}</TableCell>
+                          <TableCell>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              customer.loyaltyPoints >= 10 ? 'bg-primary text-white' : 'bg-primary/10 text-primary'
+                            }`}>
+                              {customer.loyaltyPoints} pts
+                            </span>
+                          </TableCell>
+                          <TableCell>{customer.totalOrders}</TableCell>
+                          <TableCell>₵{customer.totalSpent}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
           )}
@@ -657,67 +683,90 @@ const AdminDashboard = () => {
           {/* Reports Tab */}
           {activeTab === 'reports' && (
             <div className="space-y-6">
-              {/* Filters */}
-              <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
-                <h2 className="font-display font-semibold text-lg text-white mb-4">Generate Report</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div>
-                    <Label className="text-slate-300">Date</Label>
-                    <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="mt-1 bg-slate-900 border-slate-600 text-white rounded-xl" />
-                  </div>
-                  <div>
-                    <Label className="text-slate-300">Branch</Label>
-                    <select 
-                      className="w-full mt-1 h-10 rounded-xl border border-slate-600 bg-slate-900 text-white px-3"
-                      value={selectedBranch}
-                      onChange={(e) => setSelectedBranch(e.target.value)}
-                    >
-                      {mockBranches.map(b => (
-                        <option key={b.id}>{b.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex items-end gap-2">
-                    <Button onClick={generatePDFReport} className="flex-1 rounded-xl">
-                      <Download className="w-4 h-4 mr-2" />
-                      PDF
-                    </Button>
-                    <Button onClick={generateExcelReport} variant="outline" className="flex-1 rounded-xl border-slate-600 text-slate-300">
-                      <Download className="w-4 h-4 mr-2" />
-                      Excel
-                    </Button>
-                  </div>
+              <div className="flex gap-4 flex-wrap">
+                <div>
+                  <Label className="text-sm text-muted-foreground">Date</Label>
+                  <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="mt-1 w-48" />
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">Branch</Label>
+                  <select 
+                    value={selectedBranch} 
+                    onChange={(e) => setSelectedBranch(e.target.value)}
+                    className="mt-1 h-10 rounded-xl border border-input bg-background px-3 w-48"
+                  >
+                    {mockBranches.map(b => (
+                      <option key={b.id} value={b.name}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-end gap-2">
+                  <Button onClick={generatePDFReport} variant="outline" className="rounded-xl">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export PDF
+                  </Button>
+                  <Button onClick={generateExcelReport} variant="outline" className="rounded-xl">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Excel
+                  </Button>
                 </div>
               </div>
 
-              {/* Report Preview */}
-              <div className="bg-slate-800/50 rounded-2xl border border-slate-700/50 p-6">
-                <h3 className="font-display font-semibold text-white mb-4">
-                  Daily Report: {mockDailyReport.date} - {mockDailyReport.branch}
-                </h3>
-                <div className="bg-slate-900/50 rounded-xl p-6 font-mono text-sm">
-                  <p className="text-slate-400 mb-4">Staff: {mockDailyReport.staff.join(', ')}</p>
-                  <div className="grid grid-cols-2 gap-4 text-slate-300">
-                    <div>Wash: <span className="text-white">{mockDailyReport.wash}</span></div>
-                    <div>Dryer: <span className="text-white">{mockDailyReport.dryer}</span></div>
-                    <div>Detergent: <span className="text-white">{mockDailyReport.detergent}</span></div>
-                    <div>Extra Detergent: <span className="text-white">{mockDailyReport.extraDetergent}</span></div>
-                    <div>Technical Fault: <span className="text-white">{mockDailyReport.technicalFault}</span></div>
-                    <div>Tokens Used: <span className="text-white">{mockDailyReport.tokens}</span></div>
+              <div className="bg-card rounded-2xl border border-border p-6">
+                <h2 className="font-display font-semibold text-lg text-foreground mb-6">Daily Reconciliation Report</h2>
+                
+                <div className="mb-6 p-4 bg-muted/50 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Date</p>
+                      <p className="font-semibold">{mockDailyReport.date}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Branch</p>
+                      <p className="font-semibold">{mockDailyReport.branch}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Staff</p>
+                      <p className="font-semibold">{mockDailyReport.staff.join(', ')}</p>
+                    </div>
                   </div>
-                  <hr className="border-slate-700 my-4" />
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-slate-300">
-                      <span>Hubtel Amount:</span>
-                      <span className="text-white">₵{mockDailyReport.hubtelAmount}</span>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="font-semibold mb-4">Operations</h3>
+                    <div className="space-y-3">
+                      {[
+                        { label: 'Wash Loads', value: mockDailyReport.wash },
+                        { label: 'Dryer Loads', value: mockDailyReport.dryer },
+                        { label: 'Detergent Used', value: mockDailyReport.detergent },
+                        { label: 'Extra Detergent', value: mockDailyReport.extraDetergent },
+                        { label: 'Technical Faults', value: mockDailyReport.technicalFault },
+                        { label: 'Tokens Used', value: mockDailyReport.tokens },
+                      ].map((item) => (
+                        <div key={item.label} className="flex justify-between py-2 border-b border-border">
+                          <span className="text-muted-foreground">{item.label}</span>
+                          <span className="font-medium">{item.value}</span>
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex justify-between text-slate-300">
-                      <span>Cash Amount:</span>
-                      <span className="text-white">₵{mockDailyReport.cashAmount}</span>
-                    </div>
-                    <div className="flex justify-between text-lg font-bold text-white">
-                      <span>TOTAL:</span>
-                      <span className="text-emerald-400">₵{mockDailyReport.totalAmount}</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-4">Revenue</h3>
+                    <div className="space-y-3">
+                      {[
+                        { label: 'Hubtel/Paystack', value: `₵${mockDailyReport.hubtelAmount}` },
+                        { label: 'Cash', value: `₵${mockDailyReport.cashAmount}` },
+                      ].map((item) => (
+                        <div key={item.label} className="flex justify-between py-2 border-b border-border">
+                          <span className="text-muted-foreground">{item.label}</span>
+                          <span className="font-medium">{item.value}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between py-3 bg-primary/5 rounded-xl px-4 mt-4">
+                        <span className="font-semibold">Total Revenue</span>
+                        <span className="font-bold text-xl text-primary">₵{mockDailyReport.totalAmount}</span>
+                      </div>
                     </div>
                   </div>
                 </div>

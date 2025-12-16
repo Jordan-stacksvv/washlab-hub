@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import stackedClothes from '@/assets/stacked-clothes.jpg';
 import heroLaundry from '@/assets/hero-laundry.jpg';
+import laundryHero1 from '@/assets/laundry-hero-1.jpg';
+import laundryHero2 from '@/assets/laundry-hero-2.jpg';
 
-const images = [stackedClothes, heroLaundry];
+const images = [heroLaundry, laundryHero1, laundryHero2, stackedClothes];
 
 export const HeroSlideshow = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -10,7 +12,7 @@ export const HeroSlideshow = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % images.length);
-    }, 5000);
+    }, 4000);
     return () => clearInterval(interval);
   }, []);
 
@@ -27,14 +29,14 @@ export const HeroSlideshow = () => {
           <img 
             src={img} 
             alt="" 
-            className="w-full h-full object-cover scale-105"
+            className="w-full h-full object-cover"
           />
         </div>
       ))}
       
       {/* Gradient overlay for text readability */}
-      <div className="absolute inset-0 bg-gradient-to-r from-primary/85 via-primary/70 to-primary/50" />
-      <div className="absolute inset-0 bg-gradient-to-t from-primary/40 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/80 via-primary/60 to-primary/40" />
+      <div className="absolute inset-0 bg-gradient-to-t from-primary/50 via-transparent to-primary/20" />
     </div>
   );
 };
