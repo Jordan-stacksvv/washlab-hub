@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Logo } from './Logo';
 import { Button } from './ui/button';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, User } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -30,8 +30,8 @@ export const Navbar = () => {
                 key={link.href}
                 to={link.href}
                 className={cn(
-                  'text-sm font-medium transition-colors hover:text-primary',
-                  location.pathname === link.href ? 'text-primary' : 'text-muted-foreground'
+                  'text-sm font-medium transition-colors hover:text-wash-blue',
+                  location.pathname === link.href ? 'text-wash-blue' : 'text-muted-foreground'
                 )}
               >
                 {link.label}
@@ -40,8 +40,14 @@ export const Navbar = () => {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
+            <Link to="/account">
+              <Button variant="ghost" size="sm" className="gap-2">
+                <User className="w-4 h-4" />
+                Account
+              </Button>
+            </Link>
             <Link to="/staff">
-              <Button variant="ghost" size="sm">Staff Portal</Button>
+              <Button variant="ghost" size="sm">Staff</Button>
             </Link>
             <Link to="/admin">
               <Button variant="outline" size="sm">Admin</Button>
@@ -68,7 +74,7 @@ export const Navbar = () => {
                   className={cn(
                     'px-4 py-2 rounded-lg transition-colors',
                     location.pathname === link.href
-                      ? 'bg-primary/10 text-primary'
+                      ? 'bg-wash-blue/10 text-wash-blue'
                       : 'text-muted-foreground hover:bg-muted'
                   )}
                   onClick={() => setIsOpen(false)}
@@ -76,6 +82,19 @@ export const Navbar = () => {
                   {link.label}
                 </Link>
               ))}
+              <Link
+                to="/account"
+                className={cn(
+                  'px-4 py-2 rounded-lg transition-colors flex items-center gap-2',
+                  location.pathname === '/account'
+                    ? 'bg-wash-blue/10 text-wash-blue'
+                    : 'text-muted-foreground hover:bg-muted'
+                )}
+                onClick={() => setIsOpen(false)}
+              >
+                <User className="w-4 h-4" />
+                My Account
+              </Link>
               <div className="flex gap-2 mt-4 px-4">
                 <Link to="/staff" className="flex-1" onClick={() => setIsOpen(false)}>
                   <Button variant="ghost" size="sm" className="w-full">Staff</Button>
