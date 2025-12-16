@@ -4,30 +4,16 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ORDER_STAGES, OrderStatus } from '@/types';
+import { useOrders } from '@/context/OrderContext';
 import { Search, Phone, MessageCircle, Truck, Package } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Mock data for demo
-const mockOrder = {
-  code: 'WL-4921',
-  customerPhone: '0551234567',
-  customerName: 'Kwame Asante',
-  status: 'ready' as OrderStatus,
-  bagTag: '#10',
-  items: [
-    { category: 'Shirts', quantity: 3 },
-    { category: 'Shorts', quantity: 2 },
-    { category: 'Bras', quantity: 2 },
-  ],
-  totalPrice: 50,
-  serviceType: 'wash_and_dry',
-  createdAt: new Date('2025-01-15T10:30:00'),
-};
-
 const TrackPage = () => {
+  const { orders, getOrderByCode } = useOrders();
   const [searchQuery, setSearchQuery] = useState('');
-  const [order, setOrder] = useState<typeof mockOrder | null>(null);
+  const [foundOrder, setFoundOrder] = useState<ReturnType<typeof getOrderByCode> | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const handleSearch = () => {
     if (!searchQuery.trim()) {
@@ -36,19 +22,37 @@ const TrackPage = () => {
     }
 
     setIsSearching(true);
-    // Simulate search
+    setHasSearched(true);
+    
+    // Simulate brief loading
     setTimeout(() => {
-      if (searchQuery.toUpperCase() === 'WL-4921' || searchQuery === '0551234567') {
-        setOrder(mockOrder);
+      // Search by code first
+      let order = getOrderByCode(searchQuery.toUpperCase());
+      
+      // If not found by code, search by phone
+      if (!order) {
+        order = orders.find(o => o.customerPhone === searchQuery) || null;
+      }
+      
+      if (order) {
+        setFoundOrder(order);
+        toast.success('Order found!');
       } else {
-        setOrder(null);
+        setFoundOrder(null);
         toast.error('Order not found. Please check your order code or phone number.');
       }
       setIsSearching(false);
-    }, 1000);
+    }, 500);
   };
 
-  const currentStageIndex = ORDER_STAGES.findIndex(s => s.status === order?.status);
+  const currentStageIndex = foundOrder 
+    ? ORDER_STAGES.findIndex(s => s.status === foundOrder.status)
+    : -1;
+
+  const sendWhatsAppContact = () => {
+    const message = encodeURIComponent('Hi, I have a question about my WashLab order.');
+    window.open(`https://wa.me/233XXXXXXXXX?text=${message}`, '_blank');
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -80,21 +84,21 @@ const TrackPage = () => {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-3">
-            Demo: Try searching for "WL-4921" or "0551234567"
+            Enter the order code you received when placing your order
           </p>
         </div>
 
         {/* Order Details */}
-        {order && (
+        {foundOrder && (
           <div className="animate-fade-in">
             {/* Status Header */}
             <div className="bg-card rounded-2xl border border-border p-6 mb-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
                   <p className="text-sm text-muted-foreground">Order Code</p>
-                  <h2 className="text-2xl font-display font-bold">{order.code}</h2>
+                  <h2 className="text-2xl font-display font-bold">{foundOrder.code}</h2>
                 </div>
-                <StatusBadge status={order.status} size="lg" />
+                <StatusBadge status={foundOrder.status} size="lg" />
               </div>
 
               {/* Progress Tracker */}
@@ -125,7 +129,7 @@ const TrackPage = () => {
                 <div className="absolute top-4 left-4 right-4 h-0.5 bg-muted -z-10">
                   <div
                     className="h-full bg-primary transition-all duration-500"
-                    style={{ width: `${((currentStageIndex - 1) / 5) * 100}%` }}
+                    style={{ width: `${Math.max(0, ((currentStageIndex - 1) / 5) * 100)}%` }}
                   />
                 </div>
               </div>
@@ -138,35 +142,49 @@ const TrackPage = () => {
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Bag Tag</span>
-                    <span className="font-semibold text-primary">{order.bagTag}</span>
+                    <span className="font-semibold text-primary">
+                      {foundOrder.bagCardNumber ? `#${foundOrder.bagCardNumber}` : 'Pending'}
+                    </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Service</span>
-                    <span className="capitalize">{order.serviceType.replace('_', ' & ')}</span>
+                    <span className="text-muted-foreground">Customer</span>
+                    <span>{foundOrder.customerName}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Total</span>
-                    <span className="font-semibold">₵{order.totalPrice}</span>
+                    <span className="text-muted-foreground">Location</span>
+                    <span>{foundOrder.hall}, {foundOrder.room}</span>
                   </div>
+                  {foundOrder.totalPrice && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total</span>
+                      <span className="font-semibold">₵{foundOrder.totalPrice}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="bg-card rounded-2xl border border-border p-6">
                 <h3 className="font-display font-semibold mb-4">Items</h3>
-                <div className="space-y-2 text-sm">
-                  {order.items.map((item) => (
-                    <div key={item.category} className="flex justify-between">
-                      <span className="text-muted-foreground">{item.category}</span>
-                      <span>{item.quantity}</span>
-                    </div>
-                  ))}
-                </div>
+                {foundOrder.items && foundOrder.items.length > 0 ? (
+                  <div className="space-y-2 text-sm">
+                    {foundOrder.items.map((item, idx) => (
+                      <div key={idx} className="flex justify-between">
+                        <span className="text-muted-foreground">{item.category}</span>
+                        <span>{item.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Items will be listed after check-in
+                  </p>
+                )}
               </div>
             </div>
 
             {/* Actions for Ready Status */}
-            {order.status === 'ready' && (
-              <div className="bg-success/10 rounded-2xl border border-success/20 p-6 animate-fade-in">
+            {foundOrder.status === 'ready' && (
+              <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200 dark:border-emerald-800 p-6 animate-fade-in">
                 <div className="text-center mb-6">
                   <h3 className="font-display font-semibold text-lg mb-2">
                     🎉 Your laundry is ready!
@@ -199,13 +217,28 @@ const TrackPage = () => {
               </div>
             )}
 
+            {/* Pending Drop-off Message */}
+            {foundOrder.status === 'pending_dropoff' && (
+              <div className="bg-amber-50 dark:bg-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-800 p-6 animate-fade-in">
+                <div className="text-center">
+                  <h3 className="font-display font-semibold text-lg mb-2">
+                    📦 Awaiting Drop-off
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Please bring your clothes to your nearest WashLab station and show your order code.
+                  </p>
+                  <p className="text-2xl font-display font-bold text-primary">{foundOrder.code}</p>
+                </div>
+              </div>
+            )}
+
             {/* Contact */}
             <div className="mt-6 flex justify-center gap-4">
               <Button variant="ghost" size="sm">
                 <Phone className="w-4 h-4 mr-2" />
                 Call Us
               </Button>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" onClick={sendWhatsAppContact}>
                 <MessageCircle className="w-4 h-4 mr-2" />
                 WhatsApp
               </Button>
@@ -214,7 +247,7 @@ const TrackPage = () => {
         )}
 
         {/* Empty State */}
-        {!order && !isSearching && searchQuery && (
+        {!foundOrder && !isSearching && hasSearched && (
           <div className="text-center py-12 animate-fade-in">
             <div className="w-20 h-20 mx-auto rounded-full bg-muted flex items-center justify-center mb-4">
               <Search className="w-8 h-8 text-muted-foreground" />
@@ -222,6 +255,19 @@ const TrackPage = () => {
             <h3 className="font-display font-semibold text-lg mb-2">Order Not Found</h3>
             <p className="text-muted-foreground text-sm">
               Please double-check your order code or phone number
+            </p>
+          </div>
+        )}
+
+        {/* Initial State - No search yet */}
+        {!foundOrder && !hasSearched && (
+          <div className="text-center py-12">
+            <div className="w-20 h-20 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-4">
+              <Package className="w-8 h-8 text-primary" />
+            </div>
+            <h3 className="font-display font-semibold text-lg mb-2">Track Your Laundry</h3>
+            <p className="text-muted-foreground text-sm">
+              Enter your order code above to see the status of your laundry
             </p>
           </div>
         )}
