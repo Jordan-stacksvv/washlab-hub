@@ -27,27 +27,31 @@ const Index = () => {
       
       {/* Hero Section - Clean, Bold, Friendly */}
       <section className="relative pt-20 pb-12 md:pt-32 md:pb-24 overflow-hidden min-h-[90vh] md:min-h-[85vh] flex items-center">
-        {/* Background laundry imagery with overlay */}
+        {/* Background laundry imagery - MORE VISIBLE */}
         <div className="absolute inset-0">
           <img 
             src={heroImage1} 
-            alt="" 
-            className="w-full h-full object-cover"
+            alt="Campus laundry service" 
+            className="w-full h-full object-cover opacity-40"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/70" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-background/60" />
+          {/* Lighter overlay for better image visibility */}
+          <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/70 to-background/40" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-background/30" />
         </div>
         
-        {/* Floating laundry images - hidden on mobile */}
-        <div className="absolute top-1/4 right-10 w-32 h-32 rounded-2xl overflow-hidden shadow-2xl rotate-6 opacity-60 hidden lg:block">
-          <img src={heroImage2} alt="" className="w-full h-full object-cover" />
+        {/* Floating laundry images - MORE VISIBLE */}
+        <div className="absolute top-1/4 right-10 w-40 h-40 rounded-2xl overflow-hidden shadow-2xl rotate-6 opacity-80 hidden lg:block border-4 border-white/20">
+          <img src={heroImage2} alt="Fresh laundry" className="w-full h-full object-cover" />
         </div>
-        <div className="absolute bottom-1/4 right-1/4 w-24 h-24 rounded-xl overflow-hidden shadow-xl -rotate-12 opacity-50 hidden lg:block">
-          <img src={stackedClothes} alt="" className="w-full h-full object-cover" />
+        <div className="absolute bottom-1/4 right-1/4 w-32 h-32 rounded-xl overflow-hidden shadow-xl -rotate-12 opacity-70 hidden lg:block border-4 border-white/20">
+          <img src={stackedClothes} alt="Folded clothes" className="w-full h-full object-cover" />
+        </div>
+        <div className="absolute top-1/2 left-10 w-28 h-28 rounded-xl overflow-hidden shadow-lg rotate-3 opacity-60 hidden xl:block border-4 border-white/20">
+          <img src={heroImage1} alt="" className="w-full h-full object-cover" />
         </div>
         
         {/* Subtle accent gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
         
         <div className="container relative px-4 md:px-6 z-10">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">

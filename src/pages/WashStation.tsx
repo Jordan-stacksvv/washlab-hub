@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Logo } from '@/components/Logo';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { ORDER_STAGES, OrderStatus, ITEM_CATEGORIES } from '@/types';
 import { useOrders, Order } from '@/context/OrderContext';
+import washLabLogo from '@/assets/washlab-logo.png';
 import { 
   Search, 
   Plus, 
@@ -35,17 +36,21 @@ import {
   Clock,
   Shirt,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Bell,
+  LogIn,
+  LogOut
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-type View = 'dashboard' | 'checkin' | 'walkin' | 'order-detail';
+type View = 'dashboard' | 'checkin' | 'walkin' | 'order-detail' | 'pending-list' | 'in-progress-list' | 'ready-list' | 'staff-signin';
 
 const WashStation = () => {
-  const { orders, addOrder, updateOrder, getPendingOrders, getActiveOrders, getReadyOrders } = useOrders();
+  const { orders, addOrder, updateOrder, getPendingOrders, getActiveOrders, getReadyOrders, getCompletedOrders } = useOrders();
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const prevOrderCountRef = useRef(orders.length);
   
   // Check-in state
   const [checkInWeight, setCheckInWeight] = useState('');
@@ -60,10 +65,33 @@ const WashStation = () => {
   
   // Payment authorization
   const [isAuthorizingPayment, setIsAuthorizingPayment] = useState(false);
+  
+  // Staff attendance state
+  const [signedInStaff, setSignedInStaff] = useState<{ id: string; name: string; signedInAt: Date }[]>([]);
 
   const pendingOrders = getPendingOrders();
   const activeOrders = getActiveOrders();
   const readyOrders = getReadyOrders();
+  const completedOrders = getCompletedOrders();
+
+  // Notification for new orders
+  useEffect(() => {
+    if (orders.length > prevOrderCountRef.current) {
+      const newOrder = orders[0];
+      toast.success(`New Order! ${newOrder.code}`, {
+        description: `${newOrder.customerName} - ${newOrder.orderType === 'online' ? 'Online Order' : 'Walk-in'}`,
+        duration: 5000,
+        action: {
+          label: 'View',
+          onClick: () => {
+            setSelectedOrder(newOrder);
+            setCurrentView('order-detail');
+          }
+        }
+      });
+    }
+    prevOrderCountRef.current = orders.length;
+  }, [orders]);
 
   const handleSearch = () => {
     const found = orders.find(
@@ -192,26 +220,61 @@ const WashStation = () => {
     toast.success('WhatsApp opened');
   };
 
+  // Handle staff sign in
+  const handleStaffSignIn = (name: string) => {
+    const newStaff = { id: `staff-${Date.now()}`, name, signedInAt: new Date() };
+    setSignedInStaff(prev => [...prev, newStaff]);
+    toast.success(`${name} signed in`);
+    setCurrentView('dashboard');
+  };
+
+  const handleStaffSignOut = (staffId: string) => {
+    const staff = signedInStaff.find(s => s.id === staffId);
+    setSignedInStaff(prev => prev.filter(s => s.id !== staffId));
+    if (staff) toast.success(`${staff.name} signed out`);
+  };
+
   // Dashboard View - POS Style
   if (currentView === 'dashboard') {
     return (
       <div className="min-h-screen bg-muted/30">
         {/* Top Bar - Branch, Clock */}
-        <header className="bg-primary text-primary-foreground px-6 py-4">
+        <header className="bg-primary text-primary-foreground px-4 sm:px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Logo size="sm" />
-              <div className="h-8 w-px bg-primary-foreground/20" />
-              <div>
+            <div className="flex items-center gap-3 sm:gap-4">
+              <img src={washLabLogo} alt="WashLab" className="h-8 sm:h-10 w-auto brightness-0 invert" />
+              <div className="h-8 w-px bg-primary-foreground/20 hidden sm:block" />
+              <div className="hidden sm:block">
                 <p className="text-primary-foreground/70 text-xs">Branch</p>
                 <p className="font-semibold">Main Campus</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => window.location.href = '/staff'} className="text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary-foreground/10">
-                <Users className="w-4 h-4 mr-2" />
-                Staff
+            <div className="flex items-center gap-2 sm:gap-4">
+              {/* Signed in staff avatars */}
+              {signedInStaff.length > 0 && (
+                <div className="flex items-center gap-2 mr-2">
+                  <div className="flex -space-x-2">
+                    {signedInStaff.slice(0, 3).map((staff, i) => (
+                      <div key={staff.id} className="w-8 h-8 rounded-full bg-primary-foreground/20 border-2 border-primary flex items-center justify-center text-xs font-bold">
+                        {staff.name.charAt(0)}
+                      </div>
+                    ))}
+                  </div>
+                  <span className="text-xs text-primary-foreground/70 hidden sm:inline">
+                    {signedInStaff.length} on duty
+                  </span>
+                </div>
+              )}
+              
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setCurrentView('staff-signin')} 
+                className="text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary-foreground/10"
+              >
+                <Users className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Attendance</span>
               </Button>
               <div className="h-8 w-px bg-primary-foreground/20 hidden sm:block" />
               <div className="text-right hidden sm:block">
@@ -253,18 +316,20 @@ const WashStation = () => {
               </button>
               
               <button 
+                onClick={() => setCurrentView('pending-list')}
                 className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl p-6 flex flex-col items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-emerald-500/20 min-h-[120px] relative"
               >
                 <Package className="w-10 h-10" />
                 <span className="font-semibold">Check-in Order</span>
                 {pendingOrders.length > 0 && (
-                  <span className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white text-emerald-600 font-bold text-sm flex items-center justify-center">
+                  <span className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white text-emerald-600 font-bold text-sm flex items-center justify-center animate-pulse">
                     {pendingOrders.length}
                   </span>
                 )}
               </button>
               
               <button 
+                onClick={() => setCurrentView('in-progress-list')}
                 className="bg-amber-500 hover:bg-amber-600 text-white rounded-2xl p-6 flex flex-col items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-amber-500/20 min-h-[120px] relative"
               >
                 <Sparkles className="w-10 h-10" />
@@ -277,6 +342,7 @@ const WashStation = () => {
               </button>
               
               <button 
+                onClick={() => setCurrentView('ready-list')}
                 className="bg-violet-500 hover:bg-violet-600 text-white rounded-2xl p-6 flex flex-col items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-violet-500/20 min-h-[120px] relative"
               >
                 <Check className="w-10 h-10" />
@@ -815,6 +881,134 @@ const WashStation = () => {
               )}
             </div>
           </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Pending Orders List View
+  if (currentView === 'pending-list') {
+    return (
+      <div className="min-h-screen bg-muted/30">
+        <header className="bg-emerald-500 text-white px-4 py-4">
+          <div className="max-w-3xl mx-auto flex items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={() => setCurrentView('dashboard')} className="text-white hover:bg-white/10">
+              <ChevronLeft className="w-4 h-4 mr-1" />Back
+            </Button>
+            <h1 className="font-semibold flex-1">Pending Check-ins ({pendingOrders.length})</h1>
+          </div>
+        </header>
+        <main className="max-w-3xl mx-auto p-4 space-y-4">
+          {pendingOrders.map(order => (
+            <div key={order.id} className="bg-card rounded-xl border p-4" onClick={() => handleCheckIn(order)}>
+              <div className="flex justify-between items-start mb-2">
+                <div><p className="font-bold text-lg">{order.code}</p><p className="text-sm text-muted-foreground">{order.customerName}</p></div>
+                <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs">Pending</span>
+              </div>
+              <p className="text-sm text-muted-foreground mb-3">{order.customerPhone} • {order.hall}</p>
+              <Button className="w-full bg-emerald-500 hover:bg-emerald-600">Check In <ArrowRight className="w-4 h-4 ml-2" /></Button>
+            </div>
+          ))}
+          {pendingOrders.length === 0 && <div className="text-center py-12 text-muted-foreground">No pending orders</div>}
+        </main>
+      </div>
+    );
+  }
+
+  // In Progress List View
+  if (currentView === 'in-progress-list') {
+    return (
+      <div className="min-h-screen bg-muted/30">
+        <header className="bg-amber-500 text-white px-4 py-4">
+          <div className="max-w-3xl mx-auto flex items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={() => setCurrentView('dashboard')} className="text-white hover:bg-white/10">
+              <ChevronLeft className="w-4 h-4 mr-1" />Back
+            </Button>
+            <h1 className="font-semibold flex-1">In Progress ({activeOrders.length})</h1>
+          </div>
+        </header>
+        <main className="max-w-3xl mx-auto p-4 space-y-4">
+          {activeOrders.map(order => (
+            <div key={order.id} className="bg-card rounded-xl border p-4 cursor-pointer" onClick={() => { setSelectedOrder(order); setCurrentView('order-detail'); }}>
+              <div className="flex justify-between items-start mb-2">
+                <div><p className="font-bold text-lg">{order.code}</p><p className="text-sm text-muted-foreground">Bag #{order.bagCardNumber || '—'}</p></div>
+                <StatusBadge status={order.status} size="sm" />
+              </div>
+              <p className="text-sm text-muted-foreground">{order.customerName} • ₵{order.totalPrice || '—'}</p>
+            </div>
+          ))}
+          {activeOrders.length === 0 && <div className="text-center py-12 text-muted-foreground">No orders in progress</div>}
+        </main>
+      </div>
+    );
+  }
+
+  // Ready Orders List View
+  if (currentView === 'ready-list') {
+    return (
+      <div className="min-h-screen bg-muted/30">
+        <header className="bg-violet-500 text-white px-4 py-4">
+          <div className="max-w-3xl mx-auto flex items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={() => setCurrentView('dashboard')} className="text-white hover:bg-white/10">
+              <ChevronLeft className="w-4 h-4 mr-1" />Back
+            </Button>
+            <h1 className="font-semibold flex-1">Ready for Pickup ({readyOrders.length})</h1>
+          </div>
+        </header>
+        <main className="max-w-3xl mx-auto p-4 space-y-4">
+          {readyOrders.map(order => (
+            <div key={order.id} className="bg-card rounded-xl border p-4">
+              <div className="flex justify-between items-start mb-2">
+                <div><p className="font-bold text-lg">{order.code}</p><p className="text-sm text-muted-foreground">Bag #{order.bagCardNumber}</p></div>
+                <span className="px-2 py-1 bg-violet-100 text-violet-700 rounded-full text-xs">Ready</span>
+              </div>
+              <p className="text-sm text-muted-foreground mb-3">{order.customerName} • {order.customerPhone}</p>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => sendWhatsAppReady(order)} className="flex-1 bg-emerald-500"><MessageCircle className="w-4 h-4 mr-1" />Notify</Button>
+                <Button size="sm" onClick={() => handleUpdateOrderStatus(order.id, 'completed')} variant="outline" className="flex-1"><Check className="w-4 h-4 mr-1" />Complete</Button>
+              </div>
+            </div>
+          ))}
+          {readyOrders.length === 0 && <div className="text-center py-12 text-muted-foreground">No ready orders</div>}
+        </main>
+      </div>
+    );
+  }
+
+  // Staff Sign-in View
+  if (currentView === 'staff-signin') {
+    return (
+      <div className="min-h-screen bg-muted/30">
+        <header className="bg-primary text-primary-foreground px-4 py-4">
+          <div className="max-w-md mx-auto flex items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={() => setCurrentView('dashboard')} className="text-primary-foreground hover:bg-primary-foreground/10">
+              <ChevronLeft className="w-4 h-4 mr-1" />Back
+            </Button>
+            <h1 className="font-semibold">Staff Attendance</h1>
+          </div>
+        </header>
+        <main className="max-w-md mx-auto p-4">
+          <div className="bg-card rounded-2xl border p-6 mb-4">
+            <h2 className="font-semibold mb-4 text-center">Sign In / Sign Out</h2>
+            <p className="text-sm text-muted-foreground text-center mb-6">Use Face ID when integrated, or enter name for demo</p>
+            <div className="space-y-3">
+              <Input placeholder="Enter staff name" id="staff-name-input" className="h-12" />
+              <Button onClick={() => { const input = document.getElementById('staff-name-input') as HTMLInputElement; if (input?.value) handleStaffSignIn(input.value); }} className="w-full h-12"><LogIn className="w-5 h-5 mr-2" />Sign In</Button>
+            </div>
+          </div>
+          {signedInStaff.length > 0 && (
+            <div className="bg-card rounded-2xl border p-6">
+              <h3 className="font-semibold mb-4">Currently On Duty</h3>
+              <div className="space-y-2">
+                {signedInStaff.map(staff => (
+                  <div key={staff.id} className="flex items-center justify-between p-3 bg-muted rounded-xl">
+                    <div><p className="font-medium">{staff.name}</p><p className="text-xs text-muted-foreground">Since {staff.signedInAt.toLocaleTimeString()}</p></div>
+                    <Button size="sm" variant="ghost" onClick={() => handleStaffSignOut(staff.id)}><LogOut className="w-4 h-4" /></Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </main>
       </div>
     );
