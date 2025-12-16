@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,12 +33,12 @@ import {
   Clock,
   Settings,
   LogOut,
-  ChevronRight,
   TrendingUp,
   DollarSign,
   Package,
-  Shield,
-  ArrowRight
+  ArrowRight,
+  ArrowLeft,
+  LayoutDashboard
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -126,28 +127,36 @@ const AdminDashboard = () => {
   // Login Screen
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary via-primary/90 to-primary/80 flex flex-col p-4">
-        {/* Header with Logo */}
-        <div className="w-full max-w-md mx-auto pt-6">
-          <a href="/" className="inline-block">
-            <Logo size="md" className="text-white" />
-          </a>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-primary via-primary to-primary/90 flex flex-col">
+        {/* Header */}
+        <header className="p-6">
+          <Link to="/" className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+            <span className="font-medium">Back to Home</span>
+          </Link>
+        </header>
         
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center p-4">
           <div className="w-full max-w-md">
+            {/* Logo */}
+            <div className="flex justify-center mb-8">
+              <Link to="/">
+                <Logo size="lg" />
+              </Link>
+            </div>
+
             <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/20 backdrop-blur mb-6">
-                <Shield className="w-10 h-10 text-white" />
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 backdrop-blur mb-4">
+                <LayoutDashboard className="w-8 h-8 text-white" />
               </div>
               <h1 className="text-3xl font-display font-bold text-white mb-2">Admin Dashboard</h1>
               <p className="text-white/70">Enter your password to continue</p>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 p-8">
+            <div className="bg-white rounded-3xl p-8 shadow-2xl">
               <div className="space-y-6">
                 <div>
-                  <Label htmlFor="password" className="text-white/80 text-sm font-medium">Admin Password</Label>
+                  <Label htmlFor="password" className="text-foreground text-sm font-medium">Admin Password</Label>
                   <Input
                     id="password"
                     type="password"
@@ -155,19 +164,19 @@ const AdminDashboard = () => {
                     onChange={(e) => setLoginPassword(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                     placeholder="Enter password"
-                    className="mt-2 h-14 bg-white/10 border-white/20 text-white placeholder:text-white/40 rounded-xl"
+                    className="mt-2 h-14 rounded-xl"
                   />
                 </div>
                 <Button 
                   onClick={handleLogin} 
-                  className="w-full h-14 text-lg rounded-xl bg-white text-primary hover:bg-white/90 transition-all font-semibold"
+                  className="w-full h-14 text-lg rounded-xl bg-primary hover:bg-primary/90 font-semibold"
                 >
                   Access Dashboard
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </div>
-              <p className="text-xs text-white/50 mt-6 text-center">
-                Demo password: <span className="text-white/70 font-mono">admin123</span>
+              <p className="text-xs text-muted-foreground mt-6 text-center">
+                Demo password: <span className="font-mono font-medium">admin123</span>
               </p>
             </div>
           </div>
