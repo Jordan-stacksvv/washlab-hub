@@ -3,6 +3,9 @@ import { Logo } from '@/components/Logo';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { PhoneSlideshow } from '@/components/PhoneSlideshow';
+import heroImage1 from '@/assets/laundry-hero-1.jpg';
+import heroImage2 from '@/assets/laundry-hero-2.jpg';
+import stackedClothes from '@/assets/stacked-clothes.jpg';
 import { 
   Smartphone,
   MapPin,
@@ -23,57 +26,67 @@ const Index = () => {
       <Navbar />
       
       {/* Hero Section - Clean, Bold, Friendly */}
-      <section className="relative pt-24 pb-16 md:pt-32 md:pb-24 overflow-hidden">
+      <section className="relative pt-20 pb-12 md:pt-32 md:pb-24 overflow-hidden min-h-[90vh] md:min-h-[85vh] flex items-center">
         {/* Background laundry imagery with overlay */}
         <div className="absolute inset-0">
           <img 
-            src="https://images.unsplash.com/photo-1545173168-9f1947eebb7f?w=1920&q=80" 
+            src={heroImage1} 
             alt="" 
-            className="w-full h-full object-cover opacity-10"
+            className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-br from-background via-background/95 to-background/90" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/70" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-background/60" />
         </div>
-        {/* Subtle background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
         
-        <div className="container relative px-4 md:px-6">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+        {/* Floating laundry images - hidden on mobile */}
+        <div className="absolute top-1/4 right-10 w-32 h-32 rounded-2xl overflow-hidden shadow-2xl rotate-6 opacity-60 hidden lg:block">
+          <img src={heroImage2} alt="" className="w-full h-full object-cover" />
+        </div>
+        <div className="absolute bottom-1/4 right-1/4 w-24 h-24 rounded-xl overflow-hidden shadow-xl -rotate-12 opacity-50 hidden lg:block">
+          <img src={stackedClothes} alt="" className="w-full h-full object-cover" />
+        </div>
+        
+        {/* Subtle accent gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10" />
+        
+        <div className="container relative px-4 md:px-6 z-10">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             {/* Left - Text Content */}
-            <div className="max-w-xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
+            <div className="max-w-xl order-2 lg:order-1 text-center lg:text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4 md:mb-6 backdrop-blur-sm">
                 <Zap className="w-4 h-4" />
                 Campus Laundry Made Easy
               </div>
               
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-6 leading-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-4 md:mb-6 leading-tight">
                 Laundry made easy
                 <br />
                 <span className="text-primary">for campus life.</span>
               </h1>
               
-              <p className="text-lg md:text-xl text-muted-foreground mb-4 leading-relaxed">
+              <p className="text-base md:text-xl text-muted-foreground mb-3 md:mb-4 leading-relaxed">
                 <span className="font-semibold text-foreground">Wash. Dry. Fold. Done.</span>
               </p>
               
-              <p className="text-muted-foreground mb-8">
+              <p className="text-sm md:text-base text-muted-foreground mb-6 md:mb-8">
                 Drop your clothes. Pay instantly. Get notified when it's ready.
               </p>
               
-              <div className="flex flex-wrap gap-4">
-                <Link to="/order">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start">
+                <Link to="/order" className="w-full sm:w-auto">
                   <Button 
                     size="lg" 
-                    className="gap-2 bg-primary hover:bg-primary/90 px-8 h-14 text-base font-semibold rounded-full shadow-lg shadow-primary/20 transition-all hover:shadow-xl hover:shadow-primary/30"
+                    className="gap-2 bg-primary hover:bg-primary/90 px-6 sm:px-8 h-12 sm:h-14 text-base font-semibold rounded-full shadow-lg shadow-primary/20 transition-all hover:shadow-xl hover:shadow-primary/30 w-full"
                   >
                     Start Laundry
                     <ArrowRight className="w-5 h-5" />
                   </Button>
                 </Link>
-                <a href="#how-it-works">
+                <a href="#how-it-works" className="w-full sm:w-auto">
                   <Button 
                     size="lg" 
                     variant="outline" 
-                    className="px-8 h-14 text-base font-semibold rounded-full border-2"
+                    className="px-6 sm:px-8 h-12 sm:h-14 text-base font-semibold rounded-full border-2 bg-background/50 backdrop-blur-sm w-full"
                   >
                     How It Works
                   </Button>
@@ -82,13 +95,13 @@ const Index = () => {
             </div>
 
             {/* Right - Phone Mockup Slideshow */}
-            <div className="relative flex justify-center lg:justify-end">
-              <div className="relative">
+            <div className="relative flex justify-center lg:justify-end order-1 lg:order-2 mb-6 lg:mb-0">
+              <div className="relative scale-90 sm:scale-100">
                 <PhoneSlideshow />
                 
                 {/* Decorative elements */}
-                <div className="absolute -top-6 -left-6 w-20 h-20 bg-accent/20 rounded-full blur-2xl" />
-                <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-primary/20 rounded-full blur-2xl" />
+                <div className="absolute -top-6 -left-6 w-20 h-20 bg-accent/30 rounded-full blur-2xl" />
+                <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-primary/30 rounded-full blur-2xl" />
               </div>
             </div>
           </div>

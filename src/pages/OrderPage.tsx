@@ -87,6 +87,9 @@ const OrderPage = () => {
         hasWhites: hasWhites || false,
         washSeparately,
         notes: customerInfo.notes,
+        paymentMethod: 'pending',
+        paymentStatus: 'pending',
+        orderType: 'online',
       });
       setOrderCode(code);
       toast.success('Order placed successfully!');
