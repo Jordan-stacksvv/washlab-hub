@@ -9,6 +9,7 @@ import TrackPage from "./pages/TrackPage";
 import StaffLogin from "./pages/StaffLogin";
 import WashStation from "./pages/WashStation";
 import AdminDashboard from "./pages/AdminDashboard";
+import CustomerAccount from "./pages/CustomerAccount";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/order" element={<OrderPage />} />
           <Route path="/track" element={<TrackPage />} />
+          <Route path="/account" element={<CustomerAccount />} />
           <Route path="/staff" element={<StaffLogin />} />
           <Route path="/washstation" element={<WashStation />} />
           <Route path="/admin" element={<AdminDashboard />} />
