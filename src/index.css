@@ -6,8 +6,8 @@
 
 @layer base {
   :root {
-    /* WashLab Brand Colors */
-    --background: 210 20% 98%;
+    /* WashLab Brand Colors - Light cream/beige background */
+    --background: 40 30% 96%;
     --foreground: 220 50% 15%;
 
     --card: 0 0% 100%;
