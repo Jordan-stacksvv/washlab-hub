@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Logo } from '@/components/Logo';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { ORDER_STAGES, OrderStatus, ITEM_CATEGORIES } from '@/types';
+import { useOrders, Order } from '@/context/OrderContext';
 import { 
   Search, 
   Plus, 
@@ -38,69 +39,13 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Mock orders
-const mockOrders = [
-  {
-    id: '1',
-    code: 'WL-4921',
-    customerPhone: '0551234567',
-    customerName: 'Kwame Asante',
-    hall: 'Akuafo Hall',
-    room: 'A302',
-    status: 'ready' as OrderStatus,
-    bagCardNumber: '10',
-    items: [
-      { category: 'Shirts', quantity: 3 },
-      { category: 'Shorts', quantity: 2 },
-      { category: 'Bras', quantity: 2 },
-    ],
-    totalPrice: 50,
-    weight: 6.5,
-    loads: 1,
-    createdAt: new Date(),
-  },
-  {
-    id: '2',
-    code: 'WL-4922',
-    customerPhone: '0201234567',
-    customerName: 'Ama Serwaa',
-    hall: 'Volta Hall',
-    room: 'B105',
-    status: 'washing' as OrderStatus,
-    bagCardNumber: '11',
-    items: [
-      { category: 'Dresses', quantity: 4 },
-      { category: 'T-Shirts', quantity: 3 },
-    ],
-    totalPrice: 75,
-    weight: 9.2,
-    loads: 2,
-    createdAt: new Date(),
-  },
-  {
-    id: '3',
-    code: 'WL-4923',
-    customerPhone: '0551112222',
-    customerName: 'Kofi Mensah',
-    hall: 'Legon Hall',
-    room: 'C210',
-    status: 'pending_dropoff' as OrderStatus,
-    bagCardNumber: null,
-    items: [],
-    totalPrice: null,
-    weight: null,
-    loads: null,
-    createdAt: new Date(),
-  },
-];
-
 type View = 'dashboard' | 'checkin' | 'walkin' | 'order-detail';
 
 const WashStation = () => {
+  const { orders, addOrder, updateOrder, getPendingOrders, getActiveOrders, getReadyOrders } = useOrders();
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedOrder, setSelectedOrder] = useState<typeof mockOrders[0] | null>(null);
-  const [orders, setOrders] = useState(mockOrders);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   
   // Check-in state
   const [checkInWeight, setCheckInWeight] = useState('');
@@ -116,9 +61,9 @@ const WashStation = () => {
   // Payment authorization
   const [isAuthorizingPayment, setIsAuthorizingPayment] = useState(false);
 
-  const pendingOrders = orders.filter(o => o.status === 'pending_dropoff');
-  const activeOrders = orders.filter(o => !['pending_dropoff', 'completed'].includes(o.status));
-  const readyOrders = orders.filter(o => o.status === 'ready');
+  const pendingOrders = getPendingOrders();
+  const activeOrders = getActiveOrders();
+  const readyOrders = getReadyOrders();
 
   const handleSearch = () => {
     const found = orders.find(
@@ -133,7 +78,7 @@ const WashStation = () => {
     }
   };
 
-  const handleCheckIn = (order: typeof mockOrders[0]) => {
+  const handleCheckIn = (order: Order) => {
     setSelectedOrder(order);
     setCurrentView('checkin');
     setCheckInWeight('');
@@ -166,19 +111,16 @@ const WashStation = () => {
     const pricePerLoad = 25;
     const totalPrice = loads * pricePerLoad;
 
-    setOrders(orders.map(o => 
-      o.id === selectedOrder?.id 
-        ? { 
-            ...o, 
-            status: 'checked_in' as OrderStatus,
-            bagCardNumber: checkInBagCard,
-            weight,
-            loads,
-            totalPrice,
-            items: checkInItems,
-          } 
-        : o
-    ));
+    if (selectedOrder) {
+      updateOrder(selectedOrder.id, {
+        status: 'checked_in' as OrderStatus,
+        bagCardNumber: checkInBagCard,
+        weight,
+        loads,
+        totalPrice,
+        items: checkInItems,
+      });
+    }
 
     toast.success('Order checked in successfully');
     setCurrentView('dashboard');
@@ -191,8 +133,7 @@ const WashStation = () => {
       return;
     }
 
-    const newOrder = {
-      id: `walk-${Date.now()}`,
+    const newOrder = addOrder({
       code: `WL-${Math.floor(Math.random() * 9000) + 1000}`,
       customerPhone: walkInPhone,
       customerName: walkInName,
@@ -204,10 +145,8 @@ const WashStation = () => {
       totalPrice: null,
       weight: null,
       loads: null,
-      createdAt: new Date(),
-    };
+    });
 
-    setOrders([newOrder, ...orders]);
     setSelectedOrder(newOrder);
     setCurrentView('checkin');
     setWalkInPhone('');
@@ -217,10 +156,8 @@ const WashStation = () => {
     toast.success('Walk-in order created');
   };
 
-  const updateOrderStatus = (orderId: string, newStatus: OrderStatus) => {
-    setOrders(orders.map(o => 
-      o.id === orderId ? { ...o, status: newStatus } : o
-    ));
+  const handleUpdateOrderStatus = (orderId: string, newStatus: OrderStatus) => {
+    updateOrder(orderId, { status: newStatus });
     setSelectedOrder(prev => prev?.id === orderId ? { ...prev, status: newStatus } : prev);
     toast.success(`Order updated to ${ORDER_STAGES.find(s => s.status === newStatus)?.label}`);
   };
@@ -233,7 +170,7 @@ const WashStation = () => {
     }, 2000);
   };
 
-  const sendWhatsAppReceipt = (order: typeof mockOrders[0]) => {
+  const sendWhatsAppReceipt = (order: Order) => {
     const itemsList = order.items.map(i => `• ${i.category} – ${i.quantity}`).join('\n');
     const message = encodeURIComponent(
       `*WashLab Receipt – ${order.code}*\n*Bag Card: #${order.bagCardNumber}*\n\n*Items:*\n${itemsList}\n\n*Amount Paid:* ₵${order.totalPrice}\n\nThank you!`
@@ -243,7 +180,7 @@ const WashStation = () => {
     toast.success('WhatsApp opened');
   };
 
-  const sendWhatsAppReady = (order: typeof mockOrders[0]) => {
+  const sendWhatsAppReady = (order: Order) => {
     const message = encodeURIComponent(
       `Your WashLab order (${order.code}) is ready.\n\nReply:\n1 – Pickup\n2 – Delivery`
     );
@@ -802,7 +739,7 @@ const WashStation = () => {
                   .map((nextStage) => (
                     <Button
                       key={nextStage.status}
-                      onClick={() => updateOrderStatus(selectedOrder.id, nextStage.status)}
+                      onClick={() => handleUpdateOrderStatus(selectedOrder.id, nextStage.status)}
                       className="h-12 rounded-xl bg-blue-500 hover:bg-blue-600 text-white"
                     >
                       Move to {nextStage.label}
@@ -810,7 +747,7 @@ const WashStation = () => {
                   ))}
                 {selectedOrder.status === 'ready' && (
                   <Button
-                    onClick={() => updateOrderStatus(selectedOrder.id, 'completed')}
+                    onClick={() => handleUpdateOrderStatus(selectedOrder.id, 'completed')}
                     className="h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white"
                   >
                     <Check className="w-5 h-5 mr-2" />
@@ -865,7 +802,7 @@ const WashStation = () => {
               )}
               {selectedOrder.status === 'ready' && (
                 <Button 
-                  onClick={() => updateOrderStatus(selectedOrder.id, 'out_for_delivery')}
+                  onClick={() => handleUpdateOrderStatus(selectedOrder.id, 'out_for_delivery')}
                   variant="outline"
                   className="h-12 rounded-xl"
                 >

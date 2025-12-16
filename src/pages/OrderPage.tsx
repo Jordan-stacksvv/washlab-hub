@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { ServiceType } from '@/types';
+import { useOrders } from '@/context/OrderContext';
 import { 
   Droplets, 
   Wind, 
@@ -30,6 +31,7 @@ const generateOrderCode = () => {
 
 const OrderPage = () => {
   const navigate = useNavigate();
+  const { addOrder } = useOrders();
   const [currentStep, setCurrentStep] = useState(0);
   const [copied, setCopied] = useState(false);
   
@@ -67,8 +69,25 @@ const OrderPage = () => {
     if (currentStep < STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Submit order
+      // Submit order to shared context
       const code = generateOrderCode();
+      addOrder({
+        code,
+        customerPhone: customerInfo.phone,
+        customerName: customerInfo.name,
+        hall: customerInfo.hall,
+        room: customerInfo.room,
+        status: 'pending_dropoff',
+        serviceType: serviceType || 'wash_and_dry',
+        bagCardNumber: null,
+        items: [],
+        totalPrice: null,
+        weight: null,
+        loads: null,
+        hasWhites: hasWhites || false,
+        washSeparately,
+        notes: customerInfo.notes,
+      });
       setOrderCode(code);
       toast.success('Order placed successfully!');
     }

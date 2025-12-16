@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
+import { PhoneSlideshow } from '@/components/PhoneSlideshow';
 import { 
   Smartphone,
   MapPin,
@@ -71,55 +72,10 @@ const Index = () => {
               </div>
             </div>
 
-            {/* Right - Phone Mockup / Illustration */}
+            {/* Right - Phone Mockup Slideshow */}
             <div className="relative flex justify-center lg:justify-end">
               <div className="relative">
-                {/* Phone Frame */}
-                <div className="w-72 h-[580px] bg-foreground rounded-[3rem] p-3 shadow-2xl">
-                  <div className="w-full h-full bg-background rounded-[2.5rem] overflow-hidden flex flex-col">
-                    {/* Phone Screen Content */}
-                    <div className="bg-primary px-6 py-8 text-primary-foreground">
-                      <p className="text-sm opacity-80">Order Ready!</p>
-                      <p className="text-2xl font-bold mt-1">WL-4921</p>
-                    </div>
-                    
-                    <div className="flex-1 p-6 space-y-4">
-                      {/* WhatsApp Notification Preview */}
-                      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center">
-                            <Bell className="w-4 h-4 text-white" />
-                          </div>
-                          <span className="font-semibold text-emerald-800 text-sm">WashLab</span>
-                        </div>
-                        <p className="text-sm text-emerald-700">Your order is ready for pickup! Bag #10</p>
-                      </div>
-                      
-                      {/* Order Summary Card */}
-                      <div className="bg-muted/50 rounded-2xl p-4 space-y-3">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Service</span>
-                          <span className="font-medium">Wash & Dry</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Items</span>
-                          <span className="font-medium">12 pieces</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Total</span>
-                          <span className="font-bold text-primary">₵50.00</span>
-                        </div>
-                      </div>
-                      
-                      {/* Folded Clothes Illustration */}
-                      <div className="flex justify-center pt-4">
-                        <div className="w-32 h-24 bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl flex items-center justify-center">
-                          <span className="text-4xl">👕</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <PhoneSlideshow />
                 
                 {/* Decorative elements */}
                 <div className="absolute -top-6 -left-6 w-20 h-20 bg-accent/20 rounded-full blur-2xl" />
