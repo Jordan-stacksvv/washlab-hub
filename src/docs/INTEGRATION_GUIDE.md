@@ -5,6 +5,33 @@ WashLab is a campus laundry management system. This document covers the integrat
 
 ---
 
+## 📱 Demo Credentials
+
+| Portal | Credential | Value |
+|--------|-----------|-------|
+| Customer Account | Phone | `0551234567` |
+| Customer Account | Password | `1234` |
+| Staff Portal | Branch PIN | `1234` |
+| Admin Dashboard | Password | `admin123` |
+| Track Order | Order Code | `WL-4921` |
+| Track Order | Phone | `0551234567` |
+
+---
+
+## 📋 Page Routes
+
+| Route | Description | Access |
+|-------|-------------|--------|
+| `/` | Home page | Public |
+| `/order` | Place order (5 steps) | Public |
+| `/track` | Track order by code/phone | Public |
+| `/account` | Customer login/signup | Public |
+| `/staff` | Staff portal (Face ID) | Branch PIN |
+| `/washstation` | Staff dashboard | After Face ID |
+| `/admin` | Admin dashboard | Password |
+
+---
+
 ## 1. Convex Backend Setup
 
 ### Installation
