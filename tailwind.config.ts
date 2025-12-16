@@ -66,6 +66,10 @@ export default {
           orange: "hsl(var(--wash-orange))",
           yellow: "hsl(var(--wash-yellow))",
         },
+        hero: {
+          DEFAULT: "hsl(var(--hero-bg))",
+          light: "hsl(var(--hero-bg-light))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

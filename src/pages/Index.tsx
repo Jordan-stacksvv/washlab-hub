@@ -2,17 +2,16 @@ import { Link } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
+import { HeroSlideshow } from '@/components/HeroSlideshow';
 import { 
   Sparkles, 
   Clock, 
   Shield, 
   Truck, 
   Star,
-  ChevronRight,
   Smartphone,
   MapPin,
   Droplets,
-  Play,
   ArrowRight,
   Check
 } from 'lucide-react';
@@ -52,110 +51,83 @@ const Index = () => {
     <div className="min-h-screen bg-background overflow-hidden">
       <Navbar />
       
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center pt-16">
-        {/* Animated Background */}
+      {/* Hero Section - Solid Blue Background */}
+      <section className="relative min-h-[85vh] bg-primary overflow-hidden">
+        {/* Decorative curved shapes */}
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-wash-orange/5" />
-          <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-wash-orange/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-primary/5 to-transparent rounded-full" />
+          <div className="absolute top-0 right-0 w-1/2 h-full">
+            <svg className="absolute right-0 top-0 h-full w-auto" viewBox="0 0 400 800" fill="none" preserveAspectRatio="xMaxYMid slice">
+              <ellipse cx="450" cy="400" rx="350" ry="500" fill="hsl(220 50% 55% / 0.4)" />
+              <ellipse cx="500" cy="350" rx="280" ry="400" fill="hsl(220 50% 60% / 0.3)" />
+            </svg>
+          </div>
         </div>
 
-        {/* Floating Elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-wash-orange/20 backdrop-blur-sm border border-white/10"
-              style={{
-                left: `${10 + i * 15}%`,
-                top: `${20 + (i % 3) * 25}%`,
-                animationDelay: `${i * 0.5}s`,
-                animation: 'float 6s ease-in-out infinite',
-              }}
-            >
-              <div className="w-full h-full flex items-center justify-center text-2xl">
-                {['👕', '🧺', '✨', '🌀', '🧼', '👖'][i]}
-              </div>
-            </div>
-          ))}
-        </div>
+        {/* Slideshow images behind content */}
+        <HeroSlideshow />
         
-        <div className="container relative z-10 px-4 py-20 md:py-32">
-          <div className="max-w-4xl mx-auto text-center">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary/10 text-primary mb-8 animate-fade-in border border-primary/20 backdrop-blur-sm">
-              <Sparkles className="w-4 h-4" />
-              <span className="text-sm font-medium">Campus Laundry Made Easy</span>
-            </div>
-            
-            {/* Main Heading */}
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-display font-bold mb-8 animate-slide-up leading-tight">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-wash-orange to-wash-yellow">
-                Life Made
-              </span>
-              <br />
-              <span className="text-foreground">Simple</span>
+        <div className="container relative z-10 px-4 pt-32 pb-20 md:pt-40 md:pb-32">
+          <div className="max-w-2xl">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white mb-6 leading-tight">
+              Campus Laundry Made Simple
             </h1>
             
-            <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto animate-slide-up stagger-2 leading-relaxed">
-              The smartest way to handle your laundry on campus. Order online, drop off your clothes, 
-              and pick them up fresh and folded.
+            <p className="text-lg md:text-xl text-white/80 mb-10 max-w-lg leading-relaxed">
+              Drop off your clothes, we handle the rest. Professional wash & dry service for students across Ghana.
             </p>
             
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slide-up stagger-3 mb-16">
+            <div className="flex flex-wrap gap-4">
               <Link to="/order">
-                <Button size="lg" className="w-full sm:w-auto gap-3 bg-gradient-to-r from-primary to-wash-orange hover:opacity-90 text-white px-8 py-7 text-lg rounded-2xl shadow-2xl shadow-primary/25 transition-all hover:scale-105 hover:shadow-primary/40">
+                <Button 
+                  size="lg" 
+                  className="gap-2 bg-white text-primary hover:bg-white/90 px-8 py-6 text-base font-semibold rounded-lg transition-all"
+                >
                   Place Order
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRight className="w-4 h-4" />
                 </Button>
               </Link>
               <Link to="/track">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto px-8 py-7 text-lg rounded-2xl border-2 hover:bg-muted/50 transition-all hover:scale-105">
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="px-8 py-6 text-base font-semibold rounded-lg border-2 border-white/30 text-white bg-white/10 hover:bg-white/20 hover:border-white/50 transition-all"
+                >
                   Track Order
                 </Button>
               </Link>
             </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-10 animate-fade-in stagger-4">
-              {stats.map((stat, index) => (
-                <div 
-                  key={stat.label} 
-                  className="relative p-6 rounded-2xl bg-card/50 backdrop-blur-sm border border-border/50"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <div className="text-4xl md:text-5xl font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-wash-orange">
-                    {stat.value}<span className="text-3xl md:text-4xl">{stat.suffix}</span>
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-1">{stat.label}</div>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
+      </section>
 
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-          <div className="w-8 h-12 rounded-full border-2 border-muted-foreground/30 flex items-start justify-center p-2">
-            <div className="w-1.5 h-3 rounded-full bg-primary animate-pulse" />
+      {/* Stats Section */}
+      <section className="py-16 bg-background border-b border-border">
+        <div className="container px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
+            {stats.map((stat) => (
+              <div key={stat.label} className="text-center">
+                <div className="text-3xl md:text-4xl font-display font-bold text-primary">
+                  {stat.value}<span className="text-2xl md:text-3xl">{stat.suffix}</span>
+                </div>
+                <div className="text-sm text-muted-foreground mt-1">{stat.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* How It Works Section */}
-      <section className="py-24 md:py-32 bg-muted/30">
+      <section className="py-20 md:py-28 bg-muted/30">
         <div className="container px-4">
-          <div className="text-center mb-16">
-            <span className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
+          <div className="text-center mb-14">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
               Simple Process
             </span>
-            <h2 className="text-4xl md:text-5xl font-display font-bold mb-4">
-              How It <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-wash-orange">Works</span>
+            <h2 className="text-3xl md:text-4xl font-display font-bold mb-3">
+              How It Works
             </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+            <p className="text-muted-foreground max-w-xl mx-auto">
               Get your laundry done in 4 simple steps
             </p>
           </div>
@@ -169,18 +141,18 @@ const Index = () => {
             ].map((item, index) => (
               <div key={item.step} className="relative text-center group">
                 <div className="relative z-10 mx-auto w-fit">
-                  <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-primary to-wash-orange flex items-center justify-center mb-6 shadow-xl shadow-primary/20 group-hover:scale-110 transition-transform duration-300">
-                    <item.icon className="w-10 h-10 text-white" />
+                  <div className="w-16 h-16 mx-auto rounded-2xl bg-primary flex items-center justify-center mb-5 shadow-lg group-hover:scale-105 transition-transform duration-300">
+                    <item.icon className="w-8 h-8 text-white" />
                   </div>
-                  <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-foreground text-background font-bold flex items-center justify-center text-sm shadow-lg">
+                  <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-accent text-foreground font-bold flex items-center justify-center text-sm">
                     {item.step}
                   </div>
                 </div>
-                <h3 className="font-display font-bold text-xl mb-2">{item.title}</h3>
-                <p className="text-muted-foreground">{item.desc}</p>
+                <h3 className="font-display font-semibold text-lg mb-2">{item.title}</h3>
+                <p className="text-muted-foreground text-sm">{item.desc}</p>
                 
                 {index < 3 && (
-                  <div className="hidden md:block absolute top-10 left-[60%] w-[80%] h-0.5 bg-gradient-to-r from-primary/30 to-transparent" />
+                  <div className="hidden md:block absolute top-8 left-[60%] w-[80%] h-0.5 bg-primary/20" />
                 )}
               </div>
             ))}
@@ -189,21 +161,21 @@ const Index = () => {
       </section>
 
       {/* Services Section */}
-      <section className="py-24 md:py-32">
+      <section className="py-20 md:py-28">
         <div className="container px-4">
-          <div className="text-center mb-16">
-            <span className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
+          <div className="text-center mb-14">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
               Our Services
             </span>
-            <h2 className="text-4xl md:text-5xl font-display font-bold mb-4">
-              Professional <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-wash-orange">Services</span>
+            <h2 className="text-3xl md:text-4xl font-display font-bold mb-3">
+              Professional Services
             </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+            <p className="text-muted-foreground max-w-xl mx-auto">
               Tailored for campus life
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {[
               { title: 'Wash Only', price: '₵25', unit: '/load', desc: 'Professional washing with quality detergents', features: ['Quality detergent', 'Color separation', 'Gentle care'] },
               { title: 'Wash & Dry', price: '₵50', unit: '/load', desc: 'Complete service with folding included', featured: true, features: ['Everything in Wash', 'Tumble drying', 'Neatly folded'] },
@@ -211,26 +183,26 @@ const Index = () => {
             ].map((service) => (
               <div
                 key={service.title}
-                className={`relative p-8 rounded-3xl border transition-all duration-300 hover:-translate-y-2 ${
+                className={`relative p-7 rounded-2xl border transition-all duration-300 hover:-translate-y-1 ${
                   service.featured 
-                    ? 'bg-gradient-to-br from-primary/10 to-wash-orange/10 border-primary/30 shadow-2xl shadow-primary/10' 
-                    : 'bg-card border-border hover:border-primary/30 hover:shadow-xl'
+                    ? 'bg-primary/5 border-primary/30 shadow-lg' 
+                    : 'bg-card border-border hover:border-primary/20 hover:shadow-md'
                 }`}
               >
                 {service.featured && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-primary to-wash-orange text-white text-sm font-medium">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-primary text-white text-xs font-medium">
                     Popular
                   </div>
                 )}
-                <h3 className="font-display font-bold text-2xl mb-2">{service.title}</h3>
-                <div className="text-4xl font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-wash-orange mb-4">
-                  {service.price}<span className="text-lg text-muted-foreground">{service.unit}</span>
+                <h3 className="font-display font-semibold text-xl mb-2">{service.title}</h3>
+                <div className="text-3xl font-display font-bold text-primary mb-3">
+                  {service.price}<span className="text-base text-muted-foreground font-normal">{service.unit}</span>
                 </div>
-                <p className="text-muted-foreground mb-6">{service.desc}</p>
-                <ul className="space-y-3">
+                <p className="text-muted-foreground text-sm mb-5">{service.desc}</p>
+                <ul className="space-y-2">
                   {service.features.map((feature) => (
                     <li key={feature} className="flex items-center gap-2 text-sm">
-                      <Check className="w-5 h-5 text-primary" />
+                      <Check className="w-4 h-4 text-primary flex-shrink-0" />
                       <span>{feature}</span>
                     </li>
                   ))}
@@ -239,44 +211,43 @@ const Index = () => {
             ))}
           </div>
 
-          <div className="text-center mt-12">
-            <p className="text-muted-foreground mb-2">
+          <div className="text-center mt-10">
+            <p className="text-muted-foreground text-sm mb-1">
               1 load = 8kg • Final price calculated after weighing
             </p>
-            <p className="text-primary font-semibold text-lg">
-              🎁 10 washes = 1 free wash!
+            <p className="text-primary font-medium">
+              10 washes = 1 free wash!
             </p>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-24 md:py-32 bg-muted/30">
+      <section className="py-20 md:py-28 bg-muted/30">
         <div className="container px-4">
-          <div className="text-center mb-16">
-            <span className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
+          <div className="text-center mb-14">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
               Why WashLab
             </span>
-            <h2 className="text-4xl md:text-5xl font-display font-bold mb-4">
-              Why Choose <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-wash-orange">WashLab</span>?
+            <h2 className="text-3xl md:text-4xl font-display font-bold mb-3">
+              Why Choose WashLab?
             </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
+            <p className="text-muted-foreground max-w-xl mx-auto">
               We've reimagined campus laundry to fit your busy student life
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-            {features.map((feature, index) => (
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 max-w-5xl mx-auto">
+            {features.map((feature) => (
               <div
                 key={feature.title}
-                className="group p-8 rounded-3xl bg-card border border-border hover:border-primary/30 hover:shadow-xl transition-all duration-300 hover:-translate-y-2"
-                style={{ animationDelay: `${index * 0.1}s` }}
+                className="group p-6 rounded-2xl bg-card border border-border hover:border-primary/20 hover:shadow-md transition-all duration-300"
               >
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-wash-orange flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-primary/20">
-                  <feature.icon className="w-7 h-7 text-white" />
+                <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center mb-5 group-hover:scale-105 transition-transform duration-300">
+                  <feature.icon className="w-6 h-6 text-white" />
                 </div>
-                <h3 className="font-display font-bold text-xl mb-3">{feature.title}</h3>
-                <p className="text-muted-foreground">{feature.description}</p>
+                <h3 className="font-display font-semibold text-lg mb-2">{feature.title}</h3>
+                <p className="text-muted-foreground text-sm">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -284,20 +255,22 @@ const Index = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 md:py-32 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-wash-orange/10" />
-        <div className="container px-4 relative z-10">
-          <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-4xl md:text-5xl font-display font-bold mb-6">
-              Ready to Get <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-wash-orange">Started</span>?
+      <section className="py-20 md:py-28 bg-primary">
+        <div className="container px-4">
+          <div className="max-w-2xl mx-auto text-center">
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-white mb-5">
+              Ready to Get Started?
             </h2>
-            <p className="text-muted-foreground mb-10 text-lg">
+            <p className="text-white/80 mb-8 text-lg">
               Join thousands of students who've made the switch to WashLab
             </p>
             <Link to="/order">
-              <Button size="lg" className="gap-3 bg-gradient-to-r from-primary to-wash-orange hover:opacity-90 text-white px-10 py-7 text-lg rounded-2xl shadow-2xl shadow-primary/25 transition-all hover:scale-105">
+              <Button 
+                size="lg" 
+                className="gap-2 bg-white text-primary hover:bg-white/90 px-10 py-6 text-base font-semibold rounded-lg transition-all"
+              >
                 Place Your First Order
-                <ArrowRight className="w-5 h-5" />
+                <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
           </div>
@@ -305,7 +278,7 @@ const Index = () => {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 border-t border-border bg-muted/30">
+      <footer className="py-10 border-t border-border bg-background">
         <div className="container px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <Logo size="sm" />
