@@ -26,7 +26,8 @@ import {
   Home,
   ClipboardList,
   Users,
-  X
+  X,
+  CreditCard as CardIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -37,11 +38,14 @@ const mockOrders = [
     code: 'WL-4921',
     customerPhone: '0551234567',
     customerName: 'Kwame Asante',
+    hall: 'Akuafo Hall',
+    room: 'A302',
     status: 'ready' as OrderStatus,
-    bagTag: '#10',
+    bagCardNumber: '10',
     items: [
       { category: 'Shirts', quantity: 3 },
       { category: 'Shorts', quantity: 2 },
+      { category: 'Bras', quantity: 2 },
     ],
     totalPrice: 50,
     weight: 6.5,
@@ -52,11 +56,13 @@ const mockOrders = [
     code: 'WL-4922',
     customerPhone: '0201234567',
     customerName: 'Ama Serwaa',
+    hall: 'Volta Hall',
+    room: 'B105',
     status: 'washing' as OrderStatus,
-    bagTag: '#11',
+    bagCardNumber: '11',
     items: [
       { category: 'Dresses', quantity: 4 },
-      { category: 'Blouses', quantity: 3 },
+      { category: 'T-Shirts', quantity: 3 },
     ],
     totalPrice: 75,
     weight: 9.2,
@@ -67,8 +73,10 @@ const mockOrders = [
     code: 'WL-4923',
     customerPhone: '0551112222',
     customerName: 'Kofi Mensah',
+    hall: 'Legon Hall',
+    room: 'C210',
     status: 'pending_dropoff' as OrderStatus,
-    bagTag: null,
+    bagCardNumber: null,
     items: [],
     totalPrice: null,
     weight: null,
@@ -86,12 +94,14 @@ const WashStation = () => {
   
   // Check-in state
   const [checkInWeight, setCheckInWeight] = useState('');
-  const [checkInBagTag, setCheckInBagTag] = useState('');
+  const [checkInBagCard, setCheckInBagCard] = useState('');
   const [checkInItems, setCheckInItems] = useState<{ category: string; quantity: number }[]>([]);
   
   // Walk-in state
   const [walkInPhone, setWalkInPhone] = useState('');
   const [walkInName, setWalkInName] = useState('');
+  const [walkInHall, setWalkInHall] = useState('');
+  const [walkInRoom, setWalkInRoom] = useState('');
   const [walkInClothesCount, setWalkInClothesCount] = useState('');
   
   // Payment authorization
@@ -118,7 +128,7 @@ const WashStation = () => {
     setSelectedOrder(order);
     setCurrentView('checkin');
     setCheckInWeight('');
-    setCheckInBagTag('');
+    setCheckInBagCard('');
     setCheckInItems([]);
   };
 
@@ -137,13 +147,13 @@ const WashStation = () => {
   };
 
   const completeCheckIn = () => {
-    if (!checkInWeight || !checkInBagTag || checkInItems.length === 0) {
+    if (!checkInWeight || !checkInBagCard || checkInItems.length === 0) {
       toast.error('Please fill in all fields');
       return;
     }
 
     const weight = parseFloat(checkInWeight);
-    const loads = Math.ceil(weight / 8);
+    const loads = weight <= 9 ? 1 : Math.ceil(weight / 8);
     const pricePerLoad = 25;
     const totalPrice = loads * pricePerLoad;
 
@@ -152,7 +162,7 @@ const WashStation = () => {
         ? { 
             ...o, 
             status: 'checked_in' as OrderStatus,
-            bagTag: `#${checkInBagTag}`,
+            bagCardNumber: checkInBagCard,
             weight,
             loads,
             totalPrice,
@@ -167,8 +177,8 @@ const WashStation = () => {
   };
 
   const createWalkInOrder = () => {
-    if (!walkInPhone || !walkInName || !walkInClothesCount) {
-      toast.error('Please fill in all fields');
+    if (!walkInPhone || !walkInName) {
+      toast.error('Please fill in phone and name');
       return;
     }
 
@@ -177,8 +187,10 @@ const WashStation = () => {
       code: `WL-${Math.floor(Math.random() * 9000) + 1000}`,
       customerPhone: walkInPhone,
       customerName: walkInName,
+      hall: walkInHall,
+      room: walkInRoom,
       status: 'checked_in' as OrderStatus,
-      bagTag: null,
+      bagCardNumber: null,
       items: [],
       totalPrice: null,
       weight: null,
@@ -190,6 +202,8 @@ const WashStation = () => {
     setCurrentView('checkin');
     setWalkInPhone('');
     setWalkInName('');
+    setWalkInHall('');
+    setWalkInRoom('');
     setWalkInClothesCount('');
     toast.success('Walk-in order created');
   };
@@ -198,6 +212,7 @@ const WashStation = () => {
     setOrders(orders.map(o => 
       o.id === orderId ? { ...o, status: newStatus } : o
     ));
+    setSelectedOrder(prev => prev?.id === orderId ? { ...prev, status: newStatus } : prev);
     toast.success(`Order updated to ${ORDER_STAGES.find(s => s.status === newStatus)?.label}`);
   };
 
@@ -210,11 +225,22 @@ const WashStation = () => {
     }, 2000);
   };
 
-  const sendWhatsAppNotification = (order: typeof mockOrders[0]) => {
+  const sendWhatsAppReceipt = (order: typeof mockOrders[0]) => {
+    const itemsList = order.items.map(i => `• ${i.category} – ${i.quantity}`).join('\n');
     const message = encodeURIComponent(
-      `WashLab Order Update\n\nYour order (${order.code}) is ready!\nBag Tag: ${order.bagTag}\n\nReply:\n1 - Pickup\n2 - Delivery`
+      `*WashLab Receipt – ${order.code}*\n*Bag Card: #${order.bagCardNumber}*\n\n*Items:*\n${itemsList}\n\n*Amount Paid:* ₵${order.totalPrice}\n\nThank you!`
     );
-    window.open(`https://wa.me/${order.customerPhone}?text=${message}`, '_blank');
+    const phone = order.customerPhone.startsWith('0') ? `233${order.customerPhone.slice(1)}` : order.customerPhone;
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+    toast.success('WhatsApp opened');
+  };
+
+  const sendWhatsAppReady = (order: typeof mockOrders[0]) => {
+    const message = encodeURIComponent(
+      `Your WashLab order (${order.code}) is ready.\n\nReply:\n1 – Pickup\n2 – Delivery`
+    );
+    const phone = order.customerPhone.startsWith('0') ? `233${order.customerPhone.slice(1)}` : order.customerPhone;
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
     toast.success('WhatsApp opened');
   };
 
@@ -260,11 +286,11 @@ const WashStation = () => {
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="bg-card rounded-xl border border-border p-4 text-center">
-              <p className="text-2xl font-display font-bold text-warning">{pendingOrders.length}</p>
+              <p className="text-2xl font-display font-bold text-wash-orange">{pendingOrders.length}</p>
               <p className="text-xs text-muted-foreground">Pending Drop-off</p>
             </div>
             <div className="bg-card rounded-xl border border-border p-4 text-center">
-              <p className="text-2xl font-display font-bold text-primary">{activeOrders.length}</p>
+              <p className="text-2xl font-display font-bold text-wash-blue">{activeOrders.length}</p>
               <p className="text-xs text-muted-foreground">In Progress</p>
             </div>
             <div className="bg-card rounded-xl border border-border p-4 text-center">
@@ -277,18 +303,18 @@ const WashStation = () => {
           {pendingOrders.length > 0 && (
             <div className="mb-6">
               <h2 className="font-display font-semibold mb-3 flex items-center gap-2">
-                <Package className="w-5 h-5 text-warning" />
+                <Package className="w-5 h-5 text-wash-orange" />
                 Pending Drop-off ({pendingOrders.length})
               </h2>
               <div className="space-y-3">
                 {pendingOrders.map((order) => (
                   <div
                     key={order.id}
-                    className="bg-card rounded-xl border border-warning/30 p-4 flex items-center justify-between"
+                    className="bg-card rounded-xl border border-wash-orange/30 p-4 flex items-center justify-between"
                   >
                     <div>
                       <p className="font-semibold">{order.code}</p>
-                      <p className="text-sm text-muted-foreground">{order.customerName}</p>
+                      <p className="text-sm text-muted-foreground">{order.customerName} • {order.customerPhone}</p>
                     </div>
                     <Button size="sm" onClick={() => handleCheckIn(order)}>
                       Check In
@@ -303,22 +329,23 @@ const WashStation = () => {
           {/* Active Orders */}
           <div>
             <h2 className="font-display font-semibold mb-3 flex items-center gap-2">
-              <ClipboardList className="w-5 h-5 text-primary" />
+              <ClipboardList className="w-5 h-5 text-wash-blue" />
               Active Orders
             </h2>
             <div className="space-y-3">
               {activeOrders.map((order) => (
                 <div
                   key={order.id}
-                  className="bg-card rounded-xl border border-border p-4 cursor-pointer hover:border-primary/50 transition-colors"
+                  className="bg-card rounded-xl border border-border p-4 cursor-pointer hover:border-wash-blue/50 transition-colors"
                   onClick={() => { setSelectedOrder(order); setCurrentView('order-detail'); }}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
                       <span className="font-semibold">{order.code}</span>
-                      {order.bagTag && (
-                        <span className="px-2 py-0.5 bg-primary/10 rounded text-xs text-primary font-medium">
-                          {order.bagTag}
+                      {order.bagCardNumber && (
+                        <span className="px-2 py-0.5 bg-wash-blue/10 rounded text-xs text-wash-blue font-medium flex items-center gap-1">
+                          <CardIcon className="w-3 h-3" />
+                          #{order.bagCardNumber}
                         </span>
                       )}
                     </div>
@@ -357,6 +384,7 @@ const WashStation = () => {
               <p className="text-sm text-muted-foreground">Customer</p>
               <p className="font-semibold">{selectedOrder.customerName}</p>
               <p className="text-sm text-muted-foreground">{selectedOrder.customerPhone}</p>
+              {selectedOrder.hall && <p className="text-sm text-muted-foreground">{selectedOrder.hall}, Room {selectedOrder.room}</p>}
             </div>
 
             {/* Weight */}
@@ -376,21 +404,24 @@ const WashStation = () => {
               />
               {checkInWeight && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Estimated loads: {Math.ceil(parseFloat(checkInWeight) / 8)} 
-                  (₵{Math.ceil(parseFloat(checkInWeight) / 8) * 25})
+                  Loads: {parseFloat(checkInWeight) <= 9 ? 1 : Math.ceil(parseFloat(checkInWeight) / 8)} 
+                  {' '}(₵{(parseFloat(checkInWeight) <= 9 ? 1 : Math.ceil(parseFloat(checkInWeight) / 8)) * 25})
                 </p>
               )}
             </div>
 
-            {/* Bag Tag */}
+            {/* Bag Card Number */}
             <div className="mb-4">
-              <Label htmlFor="bagTag">Bag Tag Number</Label>
+              <Label htmlFor="bagCard" className="flex items-center gap-2">
+                <CardIcon className="w-4 h-4" />
+                Bag Card Number
+              </Label>
               <Input
-                id="bagTag"
+                id="bagCard"
                 type="number"
-                value={checkInBagTag}
-                onChange={(e) => setCheckInBagTag(e.target.value)}
-                placeholder="Enter tag number (e.g. 10)"
+                value={checkInBagCard}
+                onChange={(e) => setCheckInBagCard(e.target.value)}
+                placeholder="Enter card number (e.g. 10)"
                 className="mt-1"
               />
             </div>
@@ -469,7 +500,7 @@ const WashStation = () => {
           <div className="bg-card rounded-2xl border border-border p-6 mb-6">
             <div className="space-y-4">
               <div>
-                <Label htmlFor="phone">Phone Number</Label>
+                <Label htmlFor="phone">Phone Number *</Label>
                 <Input
                   id="phone"
                   type="tel"
@@ -483,7 +514,7 @@ const WashStation = () => {
                 </p>
               </div>
               <div>
-                <Label htmlFor="name">Customer Name</Label>
+                <Label htmlFor="name">Customer Name *</Label>
                 <Input
                   id="name"
                   value={walkInName}
@@ -491,6 +522,28 @@ const WashStation = () => {
                   placeholder="Enter customer name"
                   className="mt-1"
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="hall">Hall / Hostel</Label>
+                  <Input
+                    id="hall"
+                    value={walkInHall}
+                    onChange={(e) => setWalkInHall(e.target.value)}
+                    placeholder="e.g. Akuafo Hall"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="room">Room Number</Label>
+                  <Input
+                    id="room"
+                    value={walkInRoom}
+                    onChange={(e) => setWalkInRoom(e.target.value)}
+                    placeholder="e.g. A302"
+                    className="mt-1"
+                  />
+                </div>
               </div>
               <div>
                 <Label htmlFor="count">Approximate Clothes Count</Label>
@@ -518,7 +571,6 @@ const WashStation = () => {
   // Order Detail View
   if (currentView === 'order-detail' && selectedOrder) {
     const currentStageIndex = ORDER_STAGES.findIndex(s => s.status === selectedOrder.status);
-    const nextStage = ORDER_STAGES[currentStageIndex + 1];
 
     return (
       <div className="min-h-screen bg-background">
@@ -546,10 +598,19 @@ const WashStation = () => {
                 <span className="text-muted-foreground">Phone</span>
                 <span>{selectedOrder.customerPhone}</span>
               </div>
-              {selectedOrder.bagTag && (
+              {selectedOrder.hall && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Bag Tag</span>
-                  <span className="font-semibold text-primary">{selectedOrder.bagTag}</span>
+                  <span className="text-muted-foreground">Location</span>
+                  <span>{selectedOrder.hall}, {selectedOrder.room}</span>
+                </div>
+              )}
+              {selectedOrder.bagCardNumber && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Bag Card</span>
+                  <span className="font-semibold text-wash-blue flex items-center gap-1">
+                    <CardIcon className="w-4 h-4" />
+                    #{selectedOrder.bagCardNumber}
+                  </span>
                 </div>
               )}
             </div>
@@ -623,7 +684,7 @@ const WashStation = () => {
                 {isAuthorizingPayment ? (
                   <>
                     <Camera className="w-5 h-5 animate-pulse" />
-                    Authorizing with Face ID...
+                    Face ID Authorization...
                   </>
                 ) : (
                   <>
@@ -634,17 +695,30 @@ const WashStation = () => {
               </Button>
             )}
 
-            {/* WhatsApp Notification */}
+            {/* Send Receipt after payment */}
+            {selectedOrder.status !== 'pending_dropoff' && selectedOrder.status !== 'checked_in' && selectedOrder.items.length > 0 && (
+              <Button 
+                onClick={() => sendWhatsAppReceipt(selectedOrder)} 
+                variant="outline"
+                className="w-full" 
+                size="lg"
+              >
+                <MessageCircle className="w-5 h-5" />
+                Send WhatsApp Receipt
+              </Button>
+            )}
+
+            {/* WhatsApp Ready Notification */}
             {selectedOrder.status === 'ready' && (
               <>
                 <Button 
-                  onClick={() => sendWhatsAppNotification(selectedOrder)} 
+                  onClick={() => sendWhatsAppReady(selectedOrder)} 
                   className="w-full" 
                   size="lg"
                   variant="success"
                 >
                   <MessageCircle className="w-5 h-5" />
-                  Send WhatsApp Notification
+                  Notify Customer (Ready)
                 </Button>
                 <div className="grid grid-cols-2 gap-3">
                   <Button 
@@ -652,14 +726,14 @@ const WashStation = () => {
                     onClick={() => updateOrderStatus(selectedOrder.id, 'completed')}
                   >
                     <Check className="w-5 h-5" />
-                    Mark Picked Up
+                    Picked Up
                   </Button>
                   <Button 
                     variant="outline"
                     onClick={() => updateOrderStatus(selectedOrder.id, 'out_for_delivery')}
                   >
                     <Truck className="w-5 h-5" />
-                    Out for Delivery
+                    Delivery
                   </Button>
                 </div>
               </>

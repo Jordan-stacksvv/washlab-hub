@@ -15,7 +15,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ["Plus Jakarta Sans", "system-ui", "sans-serif"],
-        display: ["Space Grotesk", "system-ui", "sans-serif"],
+        display: ["Outfit", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -61,10 +61,10 @@ export default {
         },
         wash: {
           blue: "hsl(var(--wash-blue))",
-          teal: "hsl(var(--wash-teal))",
-          purple: "hsl(var(--wash-purple))",
-          pink: "hsl(var(--wash-pink))",
+          "blue-light": "hsl(var(--wash-blue-light))",
+          "blue-dark": "hsl(var(--wash-blue-dark))",
           orange: "hsl(var(--wash-orange))",
+          yellow: "hsl(var(--wash-yellow))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
@@ -117,8 +117,8 @@ export default {
         "slide-in-right": "slide-in-right 0.3s ease-out",
       },
       boxShadow: {
-        glow: "0 0 40px hsl(199, 89%, 48%, 0.3)",
-        "glow-lg": "0 0 60px hsl(199, 89%, 48%, 0.4)",
+        glow: "0 0 40px hsl(217, 58%, 45%, 0.3)",
+        "glow-lg": "0 0 60px hsl(217, 58%, 45%, 0.4)",
       },
     },
   },

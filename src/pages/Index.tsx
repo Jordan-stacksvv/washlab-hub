@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { AnimatedBackground } from '@/components/AnimatedBackground';
 import { HeroSlideshow } from '@/components/HeroSlideshow';
+import { AnimatedBackground } from '@/components/AnimatedBackground';
 import { Logo } from '@/components/Logo';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,7 @@ const features = [
   {
     icon: Shield,
     title: 'Secure & Trackable',
-    description: 'Bag tag system ensures your clothes are always accounted for',
+    description: 'Bag card system ensures your clothes are always accounted for',
   },
   {
     icon: Truck,
@@ -57,15 +57,15 @@ const Index = () => {
         
         <div className="container relative z-10 px-4 py-20 md:py-32">
           <div className="max-w-3xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-6 animate-fade-in">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-wash-blue/10 text-wash-blue mb-6 animate-fade-in">
               <Sparkles className="w-4 h-4" />
               <span className="text-sm font-medium">Campus Laundry Made Easy</span>
             </div>
             
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-display font-bold mb-6 animate-slide-up">
-              <span className="text-gradient">Fresh Clothes,</span>
+              <span className="text-gradient">Life Made</span>
               <br />
-              <span className="text-foreground">Zero Stress</span>
+              <span className="text-foreground">Simple</span>
             </h1>
             
             <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-slide-up stagger-2">
@@ -128,7 +128,7 @@ const Index = () => {
                 className="group p-6 rounded-2xl bg-card border border-border hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-wash-blue to-wash-orange flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
                   <feature.icon className="w-6 h-6 text-primary-foreground" />
                 </div>
                 <h3 className="font-display font-semibold text-lg mb-2">{feature.title}</h3>
@@ -160,10 +160,10 @@ const Index = () => {
             ].map((item, index) => (
               <div key={item.step} className="relative text-center">
                 <div className="relative z-10">
-                  <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-4 shadow-glow">
+                  <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-wash-blue to-wash-orange flex items-center justify-center mb-4 shadow-glow">
                     <item.icon className="w-8 h-8 text-primary-foreground" />
                   </div>
-                  <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-accent text-accent-foreground font-bold flex items-center justify-center text-sm">
+                  <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-wash-orange text-foreground font-bold flex items-center justify-center text-sm">
                     {item.step}
                   </div>
                 </div>
@@ -171,7 +171,7 @@ const Index = () => {
                 <p className="text-muted-foreground text-sm">{item.desc}</p>
                 
                 {index < 3 && (
-                  <div className="hidden md:block absolute top-8 left-[60%] w-[80%] h-0.5 bg-gradient-to-r from-primary/50 to-transparent" />
+                  <div className="hidden md:block absolute top-8 left-[60%] w-[80%] h-0.5 bg-gradient-to-r from-wash-blue/50 to-transparent" />
                 )}
               </div>
             ))}
@@ -189,7 +189,7 @@ const Index = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 md:py-32 bg-gradient-to-br from-primary/10 via-accent/10 to-wash-purple/10">
+      <section className="py-20 md:py-32 bg-gradient-to-br from-wash-blue/10 via-wash-orange/10 to-wash-blue-light/10">
         <div className="container px-4">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">
@@ -215,7 +215,7 @@ const Index = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <Logo size="sm" />
             <p className="text-sm text-muted-foreground">
-              © 2025 WashLab. Campus laundry made simple.
+              © 2025 WashLab. Life made simple.
             </p>
           </div>
         </div>

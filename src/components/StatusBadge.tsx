@@ -18,10 +18,9 @@ export const StatusBadge = ({ status, size = 'md' }: StatusBadgeProps) => {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full font-medium',
+        'inline-flex items-center gap-1.5 rounded-full font-medium text-white',
         sizeClasses[size],
-        stage?.color,
-        'text-white'
+        stage?.color
       )}
     >
       <span className="w-1.5 h-1.5 rounded-full bg-white/50 animate-pulse" />

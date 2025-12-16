@@ -19,13 +19,13 @@ export const AnimatedBackground = () => {
 
   useEffect(() => {
     const newItems: FloatingItem[] = [];
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 15; i++) {
       newItems.push({
         id: i,
         icon: laundryIcons[Math.floor(Math.random() * laundryIcons.length)],
         x: Math.random() * 100,
         y: Math.random() * 100,
-        size: Math.random() * 30 + 20,
+        size: Math.random() * 25 + 15,
         duration: Math.random() * 10 + 10,
         delay: Math.random() * 5,
       });
@@ -36,18 +36,18 @@ export const AnimatedBackground = () => {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
+      <div className="absolute inset-0 bg-gradient-to-br from-wash-blue/5 via-transparent to-wash-orange/5" />
       
       {/* Animated circles */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse-soft" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-pulse-soft" style={{ animationDelay: '1s' }} />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-wash-purple/5 rounded-full blur-3xl animate-spin-slow" />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-wash-blue/10 rounded-full blur-3xl animate-pulse-soft" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-wash-orange/10 rounded-full blur-3xl animate-pulse-soft" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-wash-blue/5 rounded-full blur-3xl animate-spin-slow" />
 
       {/* Floating laundry items */}
       {items.map((item) => (
         <div
           key={item.id}
-          className="absolute opacity-20"
+          className="absolute opacity-15"
           style={{
             left: `${item.x}%`,
             top: `${item.y}%`,
