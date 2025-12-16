@@ -20,20 +20,21 @@ export const HeroSlideshow = () => {
       {images.map((img, index) => (
         <div
           key={index}
-          className={`absolute inset-0 transition-opacity duration-1000 ${
+          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
             index === currentIndex ? 'opacity-100' : 'opacity-0'
           }`}
         >
           <img 
             src={img} 
             alt="" 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover scale-105"
           />
         </div>
       ))}
       
-      {/* Dark overlay for text readability - images fully visible behind */}
-      <div className="absolute inset-0 bg-primary/60" />
+      {/* Gradient overlay for text readability */}
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/85 via-primary/70 to-primary/50" />
+      <div className="absolute inset-0 bg-gradient-to-t from-primary/40 to-transparent" />
     </div>
   );
 };
