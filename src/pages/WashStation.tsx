@@ -46,6 +46,7 @@ import {
 import { toast } from 'sonner';
 
 type MainView = 'dashboard' | 'walkin' | 'orders' | 'customers' | 'settings';
+type ThemeMode = 'light' | 'dark';
 type WalkinStep = 'phone' | 'order' | 'delivery' | 'summary' | 'payment' | 'confirmation';
 
 interface SignedInStaff {
@@ -69,9 +70,9 @@ interface WalkinData {
 }
 
 const serviceTypes = [
-  { id: 'wash_only', label: 'Wash Only', price: 25, icon: Droplets, tokens: 1 },
-  { id: 'wash_and_dry', label: 'Wash & Dry', price: 50, icon: Wind, tokens: 2 },
-  { id: 'dry_only', label: 'Dry Only', price: 25, icon: Sun, tokens: 1 },
+  { id: 'wash_and_dry', label: 'Wash & Dry', price: 25, icon: Wind, tokens: 2, description: 'Complete service including washing, drying, and folding' },
+  { id: 'wash_only', label: 'Wash Only', price: 15, icon: Droplets, tokens: 1, description: 'Professional washing with premium detergents' },
+  { id: 'dry_only', label: 'Dry Only', price: 12, icon: Sun, tokens: 1, description: 'Quick and efficient drying service' },
 ];
 
 const WashStation = () => {
@@ -108,6 +109,16 @@ const WashStation = () => {
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [enrollName, setEnrollName] = useState('');
   const [showEnrollDialog, setShowEnrollDialog] = useState(false);
+  const [themeMode, setThemeMode] = useState<ThemeMode>('light');
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  // Toggle dark/light mode
+  const toggleTheme = () => {
+    const newMode = themeMode === 'light' ? 'dark' : 'light';
+    setThemeMode(newMode);
+    document.documentElement.classList.toggle('dark', newMode === 'dark');
+    toast.success(`Switched to ${newMode} mode`);
+  };
 
   const pendingOrders = getPendingOrders();
   const activeOrders = getActiveOrders();
@@ -265,10 +276,35 @@ const WashStation = () => {
           <Settings className="w-4 h-4" />
           Admin
         </Link>
-        <button className="p-2 rounded-lg hover:bg-muted transition-colors">
-          <Sun className="w-5 h-5 text-muted-foreground" />
+        
+        {/* Theme Toggle Button */}
+        <button 
+          onClick={toggleTheme}
+          className="p-2 rounded-lg hover:bg-muted transition-colors"
+          title={`Switch to ${themeMode === 'light' ? 'dark' : 'light'} mode`}
+        >
+          {themeMode === 'light' ? (
+            <Sun className="w-5 h-5 text-muted-foreground" />
+          ) : (
+            <span className="w-5 h-5 text-muted-foreground">🌙</span>
+          )}
         </button>
-        <button className="p-2 rounded-lg hover:bg-muted transition-colors relative">
+        
+        {/* Notifications Button */}
+        <button 
+          onClick={() => {
+            setShowNotifications(!showNotifications);
+            if (pendingOrders.length > 0) {
+              toast.info(`${pendingOrders.length} pending orders waiting`, {
+                description: 'Click to view all orders'
+              });
+              setMainView('orders');
+            } else {
+              toast.info('No new notifications');
+            }
+          }}
+          className="p-2 rounded-lg hover:bg-muted transition-colors relative"
+        >
           <Bell className="w-5 h-5 text-muted-foreground" />
           {pendingOrders.length > 0 && (
             <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
@@ -276,13 +312,14 @@ const WashStation = () => {
             </span>
           )}
         </button>
+        
         <div className="flex items-center gap-3 pl-4 border-l border-border">
           <div className="text-right">
             <p className="font-semibold text-foreground text-sm">{signedInStaff[0]?.name || 'Staff'}</p>
             <p className="text-xs text-muted-foreground">Shift Manager</p>
           </div>
-          <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
-            <User className="w-5 h-5 text-accent-foreground" />
+          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+            <User className="w-5 h-5 text-primary-foreground" />
           </div>
         </div>
       </div>
@@ -292,8 +329,8 @@ const WashStation = () => {
   // Dashboard View
   const DashboardView = () => (
     <div className="p-6 space-y-6">
-      {/* Welcome Section with Yellow Gradient */}
-      <div className="bg-gradient-to-r from-accent via-accent to-amber-400 rounded-2xl p-6 text-accent-foreground">
+      {/* Welcome Section with Blue Gradient - matches logo */}
+      <div className="bg-gradient-to-r from-primary via-primary to-wash-blue-light rounded-2xl p-6 text-primary-foreground">
         <h1 className="text-2xl font-bold mb-1">{getGreeting()}, {signedInStaff[0]?.name?.split(' ')[0] || 'Staff'}</h1>
         <div className="flex items-center gap-2 text-sm opacity-80">
           <Clock className="w-4 h-4" />
@@ -302,7 +339,7 @@ const WashStation = () => {
         
         {/* Stats Cards */}
         <div className="grid grid-cols-5 gap-4 mt-6">
-          <div className="bg-accent-foreground/10 backdrop-blur-sm rounded-xl p-4">
+          <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium opacity-80">ORDERS TODAY</span>
               <ShoppingBag className="w-4 h-4 opacity-60" />
@@ -311,7 +348,7 @@ const WashStation = () => {
             <p className="text-xs opacity-70">↗ +12% vs last week</p>
           </div>
           
-          <div className="bg-accent-foreground/10 backdrop-blur-sm rounded-xl p-4">
+          <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium opacity-80">WALK-IN ORDERS</span>
               <Users className="w-4 h-4 opacity-60" />
@@ -320,7 +357,7 @@ const WashStation = () => {
             <p className="text-xs opacity-70">↗ +12% vs last week</p>
           </div>
           
-          <div className="bg-accent-foreground/10 backdrop-blur-sm rounded-xl p-4">
+          <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium opacity-80">ONLINE ORDERS</span>
               <Smartphone className="w-4 h-4 opacity-60" />
@@ -329,7 +366,7 @@ const WashStation = () => {
             <p className="text-xs opacity-70">↗ +12% vs last week</p>
           </div>
           
-          <div className="bg-accent-foreground/10 backdrop-blur-sm rounded-xl p-4">
+          <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium opacity-80">COMPLETED</span>
               <Package className="w-4 h-4 opacity-60" />
@@ -338,7 +375,7 @@ const WashStation = () => {
             <p className="text-xs opacity-70">Ready for pickup</p>
           </div>
           
-          <div className="bg-accent-foreground/10 backdrop-blur-sm rounded-xl p-4">
+          <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium opacity-80">DELIVERED</span>
               <CheckCircle2 className="w-4 h-4 opacity-60" />
@@ -351,9 +388,9 @@ const WashStation = () => {
 
       <div className="grid grid-cols-3 gap-6">
         {/* New Walk-In Order Card */}
-        <div className="col-span-2 bg-gradient-to-br from-amber-50 to-white border border-border rounded-2xl p-8 flex flex-col items-center justify-center min-h-[280px]">
-          <div className="w-16 h-16 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center mb-4">
-            <Plus className="w-8 h-8 text-muted-foreground" />
+        <div className="col-span-2 bg-gradient-to-br from-primary/5 to-white border border-border rounded-2xl p-8 flex flex-col items-center justify-center min-h-[280px]">
+          <div className="w-16 h-16 rounded-full border-2 border-dashed border-primary/30 flex items-center justify-center mb-4">
+            <Plus className="w-8 h-8 text-primary" />
           </div>
           <h2 className="text-xl font-bold text-foreground mb-2">New Walk-In Order</h2>
           <p className="text-muted-foreground text-center mb-6 max-w-sm">
@@ -361,7 +398,7 @@ const WashStation = () => {
           </p>
           <Button 
             onClick={() => { setMainView('walkin'); resetWalkin(); }}
-            className="bg-accent hover:bg-accent/90 text-accent-foreground rounded-xl px-8 py-3 text-lg font-semibold"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-8 py-3 text-lg font-semibold"
           >
             <Plus className="w-5 h-5 mr-2" />
             Start Order
@@ -410,7 +447,7 @@ const WashStation = () => {
             </div>
             <Button 
               onClick={() => setMainView('orders')}
-              className="w-full bg-accent hover:bg-accent/90 text-accent-foreground rounded-xl h-11"
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-11"
             >
               View All
               <ArrowRight className="w-4 h-4 ml-2" />
@@ -509,7 +546,7 @@ const WashStation = () => {
     };
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-accent via-amber-400 to-amber-300 relative">
+      <div className="min-h-screen bg-gradient-to-br from-primary via-primary/80 to-wash-blue-light relative">
         <Header />
         
         <div className="p-6">
@@ -588,23 +625,23 @@ const WashStation = () => {
     const currentDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-amber-50">
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-primary/5">
         <Header />
         
         <div className="p-6">
           {/* Order Header */}
-          <div className="bg-gradient-to-r from-accent via-accent to-amber-400 rounded-2xl p-6 mb-6">
+          <div className="bg-gradient-to-r from-primary via-primary to-wash-blue-light rounded-2xl p-6 mb-6">
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-3">
-                  <h1 className="text-2xl font-bold text-accent-foreground">Order #{orderCode}</h1>
-                  <span className="px-3 py-1 bg-accent-foreground/20 text-accent-foreground text-xs font-semibold rounded-full">WALK-IN</span>
+                  <h1 className="text-2xl font-bold text-primary-foreground">Order #{orderCode}</h1>
+                  <span className="px-3 py-1 bg-primary-foreground/20 text-primary-foreground text-xs font-semibold rounded-full">WALK-IN</span>
                 </div>
-                <p className="text-accent-foreground/80">Customer: {walkinData.name || 'John Doe'}</p>
+                <p className="text-primary-foreground/80">Customer: {walkinData.name || 'John Doe'}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-accent-foreground/60">CURRENT DATE</p>
-                <p className="text-accent-foreground font-semibold">{currentDate}</p>
+                <p className="text-sm text-primary-foreground/60">CURRENT DATE</p>
+                <p className="text-primary-foreground font-semibold">{currentDate}</p>
               </div>
             </div>
           </div>
@@ -615,7 +652,7 @@ const WashStation = () => {
               {/* Service Selection */}
               <div className="bg-card border border-border rounded-2xl p-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <Droplets className="w-5 h-5 text-accent" />
+                  <Droplets className="w-5 h-5 text-primary" />
                   <h3 className="font-semibold text-foreground">Select Service</h3>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
@@ -623,23 +660,26 @@ const WashStation = () => {
                     <button
                       key={service.id}
                       onClick={() => setWalkinData(prev => ({ ...prev, serviceType: service.id as any }))}
-                      className={`p-4 rounded-xl border-2 transition-all ${
+                      className={`p-4 rounded-xl border-2 transition-all relative ${
                         walkinData.serviceType === service.id
-                          ? 'border-accent bg-accent text-accent-foreground'
+                          ? 'border-primary bg-primary text-primary-foreground'
                           : 'border-border bg-card hover:border-muted-foreground'
                       }`}
                     >
                       <service.icon className={`w-6 h-6 mx-auto mb-2 ${
-                        walkinData.serviceType === service.id ? 'text-accent-foreground' : 'text-muted-foreground'
+                        walkinData.serviceType === service.id ? 'text-primary-foreground' : 'text-primary'
                       }`} />
                       {walkinData.serviceType === service.id && (
                         <CheckCircle2 className="w-4 h-4 absolute top-2 right-2" />
                       )}
-                      <p className={`font-semibold text-sm ${walkinData.serviceType === service.id ? 'text-accent-foreground' : 'text-foreground'}`}>
+                      <p className={`font-semibold text-sm ${walkinData.serviceType === service.id ? 'text-primary-foreground' : 'text-foreground'}`}>
                         {service.label}
                       </p>
-                      <p className={`text-xs ${walkinData.serviceType === service.id ? 'text-accent-foreground/80' : 'text-muted-foreground'}`}>
-                        {service.tokens} token • GHS {service.price}
+                      <p className={`text-xs mt-1 ${walkinData.serviceType === service.id ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                        {service.description}
+                      </p>
+                      <p className={`text-sm font-bold mt-2 ${walkinData.serviceType === service.id ? 'text-primary-foreground' : 'text-primary'}`}>
+                        ₵{service.price}/load
                       </p>
                     </button>
                   ))}
@@ -667,7 +707,7 @@ const WashStation = () => {
               <div className="bg-card border border-border rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <Scale className="w-5 h-5 text-accent" />
+                    <Scale className="w-5 h-5 text-primary" />
                     <h3 className="font-semibold text-foreground">Total Weight</h3>
                   </div>
                   <span className="text-xs text-destructive bg-destructive/10 px-2 py-1 rounded font-semibold">REQUIRED</span>
@@ -686,7 +726,7 @@ const WashStation = () => {
                     <span className="text-xl text-muted-foreground">KG</span>
                   </div>
                   <Button
-                    className="h-12 w-12 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground"
+                    className="h-12 w-12 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground"
                     onClick={() => setWalkinData(prev => ({ ...prev, weight: prev.weight + 0.5 }))}
                   >
                     <Plus className="w-5 h-5" />
@@ -711,7 +751,7 @@ const WashStation = () => {
               <div className="bg-card border border-border rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <Package className="w-5 h-5 text-accent" />
+                    <Package className="w-5 h-5 text-primary" />
                     <h3 className="font-semibold text-foreground">Item Count</h3>
                   </div>
                   <span className="text-xs text-destructive bg-destructive/10 px-2 py-1 rounded font-semibold">REQUIRED</span>
@@ -730,7 +770,7 @@ const WashStation = () => {
                     <span className="text-xl text-muted-foreground">PCS</span>
                   </div>
                   <Button
-                    className="h-12 w-12 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground"
+                    className="h-12 w-12 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground"
                     onClick={() => setWalkinData(prev => ({ ...prev, itemCount: prev.itemCount + 1 }))}
                   >
                     <Plus className="w-5 h-5" />
@@ -943,7 +983,7 @@ const WashStation = () => {
 
             <div className="grid grid-cols-2 gap-0">
               {/* Left: Image */}
-              <div className="bg-gradient-to-br from-amber-50 to-white p-8 flex items-center justify-center">
+              <div className="bg-gradient-to-br from-primary/5 to-white p-8 flex items-center justify-center">
                 <img 
                   src={stackedClothes} 
                   alt="Laundry basket" 
@@ -955,8 +995,8 @@ const WashStation = () => {
               <div className="p-6">
                 {/* Customer Info */}
                 <div className="flex items-center gap-4 mb-6 pb-6 border-b border-border">
-                  <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center">
-                    <User className="w-6 h-6 text-accent-foreground" />
+                  <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
+                    <User className="w-6 h-6 text-primary-foreground" />
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold text-foreground">{walkinData.name || 'Jane Doe'}</p>
@@ -985,7 +1025,7 @@ const WashStation = () => {
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">NOTES</p>
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-accent" />
+                      <div className="w-3 h-3 rounded-full bg-primary" />
                       <div>
                         <p className="font-semibold text-foreground">Special Instructions</p>
                         <p className="text-sm text-muted-foreground">{walkinData.notes || 'No bleach, cold wash only for delicates.'}</p>
@@ -1078,12 +1118,12 @@ const WashStation = () => {
         <div className="p-6">
           <div className="max-w-6xl mx-auto grid grid-cols-3 gap-6">
             {/* Left: Customer & Order Summary */}
-            <div className="bg-gradient-to-b from-accent/20 to-white border border-border rounded-2xl overflow-hidden">
+            <div className="bg-gradient-to-b from-primary/10 to-white border border-border rounded-2xl overflow-hidden">
               <div className="p-4 border-b border-border">
                 <p className="text-xs text-muted-foreground mb-1">CUSTOMER DETAILS</p>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
-                    <User className="w-5 h-5 text-accent-foreground" />
+                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+                    <User className="w-5 h-5 text-primary-foreground" />
                   </div>
                   <div>
                     <p className="font-semibold text-foreground">{walkinData.name || 'Alice Smith'}</p>
@@ -1214,7 +1254,7 @@ const WashStation = () => {
                         <Input
                           value={`+233 ${walkinData.phone}`}
                           readOnly
-                          className="pl-12 h-12 rounded-xl bg-accent border-accent text-foreground font-semibold"
+                          className="pl-12 h-12 rounded-xl bg-primary/10 border-primary text-foreground font-semibold"
                         />
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">Check provider format before sending request.</p>
@@ -1223,7 +1263,7 @@ const WashStation = () => {
 
                     <Button
                       onClick={() => processPayment('momo')}
-                      className="mt-4 bg-foreground hover:bg-foreground/90 text-background rounded-xl px-6"
+                      className="mt-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-6"
                     >
                       <Smartphone className="w-4 h-4 mr-2" />
                       Request Payment
