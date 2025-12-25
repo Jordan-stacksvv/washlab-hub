@@ -3,59 +3,44 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue 
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { ORDER_STAGES, OrderStatus, ITEM_CATEGORIES } from '@/types';
+import { Textarea } from '@/components/ui/textarea';
+import { ORDER_STAGES, OrderStatus } from '@/types';
 import { useOrders, Order, PaymentMethod } from '@/context/OrderContext';
 import { useWebAuthn } from '@/hooks/useWebAuthn';
 import washLabLogo from '@/assets/washlab-logo.png';
+import stackedClothes from '@/assets/stacked-clothes.jpg';
 import { 
   Search, 
   Plus, 
   Package, 
   Scale,
-  MessageCircle,
   Truck,
   Check,
   ChevronRight,
   ChevronLeft,
   Home,
-  ClipboardList,
-  Users,
   X,
-  CreditCard,
   Phone,
   MapPin,
   User,
-  Shirt,
-  Sparkles,
   ArrowRight,
-  ArrowLeft,
   Bell,
-  LogIn,
-  LogOut,
   Fingerprint,
-  ShieldCheck,
   Wallet,
   Banknote,
   Smartphone,
   LayoutDashboard,
   ShoppingBag,
-  Receipt,
-  Settings,
-  UserCircle,
+  Users,
   CheckCircle2,
+  Clock,
+  Droplets,
+  Wind,
+  Sun,
+  Settings,
+  Delete,
+  CreditCard,
+  Minus,
   AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -72,55 +57,72 @@ interface SignedInStaff {
 interface WalkinData {
   phone: string;
   name: string;
-  hall: string;
-  room: string;
-  items: { category: string; quantity: number }[];
+  isNewCustomer: boolean;
+  serviceType: 'wash_only' | 'wash_and_dry' | 'dry_only';
   weight: number;
-  hasWhites: boolean;
+  itemCount: number;
+  notes: string;
   deliveryOption: 'pickup' | 'delivery';
-  bagTag: string;
+  deliveryAddress: string;
+  deliveryInstructions: string;
+  deliveryFee: number;
 }
+
+const serviceTypes = [
+  { id: 'wash_only', label: 'Wash Only', price: 25, icon: Droplets, tokens: 1 },
+  { id: 'wash_and_dry', label: 'Wash & Dry', price: 50, icon: Wind, tokens: 2 },
+  { id: 'dry_only', label: 'Dry Only', price: 25, icon: Sun, tokens: 1 },
+];
 
 const WashStation = () => {
   const { orders, addOrder, updateOrder, getPendingOrders, getActiveOrders, getReadyOrders, getCompletedOrders } = useOrders();
-  const { isSupported, isProcessing, enrollStaff, verifyStaff, enrolledStaff, removeEnrollment } = useWebAuthn();
+  const { isSupported, isProcessing, enrollStaff, verifyStaff, enrolledStaff } = useWebAuthn();
   
   const [mainView, setMainView] = useState<MainView>('dashboard');
   const [walkinStep, setWalkinStep] = useState<WalkinStep>('phone');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [showOrderDetail, setShowOrderDetail] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showStaffModal, setShowStaffModal] = useState(false);
-  const [showEnrollDialog, setShowEnrollDialog] = useState(false);
   const prevOrderCountRef = useRef(orders.length);
   
   // Walk-in data
   const [walkinData, setWalkinData] = useState<WalkinData>({
     phone: '',
     name: '',
-    hall: '',
-    room: '',
-    items: [],
-    weight: 0,
-    hasWhites: false,
+    isNewCustomer: true,
+    serviceType: 'wash_and_dry',
+    weight: 5.0,
+    itemCount: 12,
+    notes: '',
     deliveryOption: 'pickup',
-    bagTag: ''
+    deliveryAddress: '',
+    deliveryInstructions: '',
+    deliveryFee: 0
   });
   
   // Payment state
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('hubtel');
-  const [paymentAuthorizedBy, setPaymentAuthorizedBy] = useState<string | null>(null);
-  
-  // Staff attendance state
-  const [signedInStaff, setSignedInStaff] = useState<SignedInStaff[]>([]);
-  const [enrollName, setEnrollName] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'mobile_money' | 'card' | 'cash'>('mobile_money');
+  const [signedInStaff, setSignedInStaff] = useState<SignedInStaff[]>([
+    { id: '1', name: 'Alex M.', signedInAt: new Date() }
+  ]);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
+  const [enrollName, setEnrollName] = useState('');
+  const [showEnrollDialog, setShowEnrollDialog] = useState(false);
 
   const pendingOrders = getPendingOrders();
   const activeOrders = getActiveOrders();
   const readyOrders = getReadyOrders();
-  const completedOrders = getCompletedOrders();
+  const completedOrdersList = getCompletedOrders();
+
+  // Today's orders for stats
+  const todayOrders = orders.filter(o => {
+    const orderDate = new Date(o.createdAt);
+    return orderDate.toDateString() === new Date().toDateString();
+  });
+  const walkInToday = todayOrders.filter(o => o.orderType === 'walkin').length;
+  const onlineToday = todayOrders.filter(o => o.orderType === 'online').length;
+  const completedToday = todayOrders.filter(o => o.status === 'completed').length;
+  const deliveredToday = todayOrders.filter(o => o.status === 'completed').length;
 
   // Notification for new orders
   useEffect(() => {
@@ -138,93 +140,53 @@ const WashStation = () => {
     setWalkinData({
       phone: '',
       name: '',
-      hall: '',
-      room: '',
-      items: [],
-      weight: 0,
-      hasWhites: false,
+      isNewCustomer: true,
+      serviceType: 'wash_and_dry',
+      weight: 5.0,
+      itemCount: 12,
+      notes: '',
       deliveryOption: 'pickup',
-      bagTag: ''
+      deliveryAddress: '',
+      deliveryInstructions: '',
+      deliveryFee: 0
     });
     setWalkinStep('phone');
   };
 
   // Calculate pricing
   const calculatePrice = () => {
-    const weight = walkinData.weight || 0;
-    const extraLoadsForWhites = walkinData.hasWhites ? 1 : 0;
-    const baseLoads = weight <= 9 ? 1 : Math.ceil(weight / 8);
-    const loads = baseLoads + extraLoadsForWhites;
-    const pricePerLoad = 25;
-    return { loads, totalPrice: loads * pricePerLoad };
-  };
-
-  // Handle staff sign in with WebAuthn
-  const handleStaffSignIn = async () => {
-    if (isSupported) {
-      const result = await verifyStaff();
-      if (result.success && result.staffName && result.staffId) {
-        const newStaff: SignedInStaff = { 
-          id: result.staffId, 
-          name: result.staffName, 
-          signedInAt: new Date() 
-        };
-        setSignedInStaff(prev => [...prev, newStaff]);
-        toast.success(`${result.staffName} signed in`);
-        setShowStaffModal(false);
-      }
-    } else {
-      toast.error('WebAuthn not supported');
-    }
-  };
-
-  const handleManualSignIn = (name: string) => {
-    const newStaff: SignedInStaff = { 
-      id: `staff-${Date.now()}`, 
-      name, 
-      signedInAt: new Date() 
+    const service = serviceTypes.find(s => s.id === walkinData.serviceType);
+    const basePrice = (service?.price || 50) * Math.ceil(walkinData.weight / 5);
+    const deliveryFee = walkinData.deliveryOption === 'delivery' ? 5 : 0;
+    const subtotal = basePrice;
+    const tax = subtotal * 0.08;
+    const serviceFee = 1.50;
+    return { 
+      subtotal, 
+      tax, 
+      serviceFee,
+      deliveryFee,
+      total: subtotal + tax + serviceFee + deliveryFee 
     };
-    setSignedInStaff(prev => [...prev, newStaff]);
-    toast.success(`${name} signed in`);
-    setShowStaffModal(false);
-  };
-
-  const handleStaffSignOut = (staffId: string) => {
-    const staff = signedInStaff.find(s => s.id === staffId);
-    setSignedInStaff(prev => prev.filter(s => s.id !== staffId));
-    if (staff) toast.success(`${staff.name} signed out`);
-  };
-
-  const handleEnrollNewStaff = async () => {
-    if (!enrollName.trim()) {
-      toast.error('Please enter staff name');
-      return;
-    }
-    const staffId = `staff-${Date.now()}`;
-    const success = await enrollStaff(enrollName.trim(), staffId);
-    if (success) {
-      setEnrollName('');
-      setShowEnrollDialog(false);
-    }
   };
 
   // Process walk-in order
   const processWalkinOrder = () => {
-    const { loads, totalPrice } = calculatePrice();
+    const { total } = calculatePrice();
     
     const newOrder = addOrder({
-      code: `WL-${Math.floor(Math.random() * 9000) + 1000}`,
+      code: `ORD-${Math.floor(Math.random() * 9000) + 1000}`,
       customerPhone: walkinData.phone,
       customerName: walkinData.name,
-      hall: walkinData.hall,
-      room: walkinData.room,
+      hall: '',
+      room: '',
       status: 'checked_in' as OrderStatus,
-      bagCardNumber: walkinData.bagTag,
-      items: walkinData.items,
-      totalPrice,
+      bagCardNumber: `${Math.floor(Math.random() * 900) + 100}`,
+      items: [{ category: walkinData.serviceType, quantity: walkinData.itemCount }],
+      totalPrice: total,
       weight: walkinData.weight,
-      loads,
-      hasWhites: walkinData.hasWhites,
+      loads: Math.ceil(walkinData.weight / 5),
+      hasWhites: false,
       paymentMethod: 'pending',
       paymentStatus: 'pending',
       orderType: 'walkin',
@@ -237,23 +199,10 @@ const WashStation = () => {
 
   // Process payment
   const processPayment = async (method: PaymentMethod) => {
-    // Verify staff with WebAuthn before processing payment
-    if (isSupported && signedInStaff.length > 0) {
-      const result = await verifyStaff();
-      if (!result.success) {
-        toast.error('Payment authorization failed');
-        return;
-      }
-      setPaymentAuthorizedBy(result.staffName || signedInStaff[0]?.name);
-    } else {
-      setPaymentAuthorizedBy(signedInStaff[0]?.name || 'Unknown');
-    }
-
     if (completedOrder) {
       if (method === 'hubtel' || method === 'momo') {
-        const phone = completedOrder.customerPhone;
-        toast.success(`USSD prompt sent to ${phone}`, {
-          description: `Amount: ₵${completedOrder.totalPrice} via ${method.toUpperCase()}`
+        toast.success(`USSD prompt sent to ${completedOrder.customerPhone}`, {
+          description: `Amount: ₵${completedOrder.totalPrice?.toFixed(2)} via Mobile Money`
         });
       }
 
@@ -262,7 +211,7 @@ const WashStation = () => {
         paymentStatus: 'paid',
         paidAt: new Date(),
         paidAmount: completedOrder.totalPrice || 0,
-        processedBy: paymentAuthorizedBy || signedInStaff[0]?.name || 'Unknown',
+        processedBy: signedInStaff[0]?.name || 'Unknown',
       });
 
       setCompletedOrder(prev => prev ? { ...prev, paymentMethod: method, paymentStatus: 'paid' } : null);
@@ -272,1070 +221,1174 @@ const WashStation = () => {
   };
 
   const sendWhatsAppReceipt = (order: Order) => {
-    const itemsList = order.items.map(i => `• ${i.category} – ${i.quantity}`).join('\n');
     const message = encodeURIComponent(
-      `*WashLab Receipt – ${order.code}*\n*Bag Tag: #${order.bagCardNumber}*\n\n*Items:*\n${itemsList}\n\n*Amount Paid:* ₵${order.totalPrice}\n*Payment:* ${order.paymentMethod?.toUpperCase()}\n\nThank you for choosing WashLab! 🧺`
+      `*WashLab Receipt – ${order.code}*\n*Amount Paid:* ₵${order.totalPrice?.toFixed(2)}\n\nThank you for choosing WashLab! 🧺`
     );
     const phone = order.customerPhone.startsWith('0') ? `233${order.customerPhone.slice(1)}` : order.customerPhone;
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
     toast.success('WhatsApp opened');
   };
 
-  const handleUpdateOrderStatus = (orderId: string, newStatus: OrderStatus) => {
-    updateOrder(orderId, { 
-      status: newStatus,
-      processedBy: signedInStaff[0]?.name || 'Unknown',
-    });
-    toast.success(`Order updated to ${ORDER_STAGES.find(s => s.status === newStatus)?.label}`);
+  // Get current time greeting
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
   };
 
-  // Sidebar Navigation Items
-  const navItems = [
-    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { id: 'walkin', icon: Plus, label: 'New Order' },
-    { id: 'orders', icon: ShoppingBag, label: 'Orders' },
-    { id: 'customers', icon: Users, label: 'Customers' },
-  ];
+  const formatDate = () => {
+    return new Date().toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
 
-  // Sidebar Component
-  const Sidebar = () => (
-    <aside className="fixed left-0 top-0 h-full w-20 lg:w-64 bg-foreground flex flex-col z-50">
-      {/* Logo */}
-      <div className="p-4 lg:p-6 border-b border-muted-foreground/20">
-        <Link to="/" className="flex items-center gap-3">
-          <img src={washLabLogo} alt="WashLab" className="h-10 w-auto brightness-0 invert" />
-          <span className="hidden lg:block text-xl font-bold text-background">WashLab</span>
-        </Link>
-      </div>
+  const formatTime = () => {
+    return new Date().toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  };
 
-      {/* Navigation */}
-      <nav className="flex-1 p-2 lg:p-4">
-        <ul className="space-y-2">
-          {navItems.map((item) => (
-            <li key={item.id}>
-              <button
-                onClick={() => {
-                  setMainView(item.id as MainView);
-                  if (item.id === 'walkin') resetWalkin();
-                }}
-                className={`w-full flex items-center gap-3 px-3 lg:px-4 py-3 rounded-xl transition-all ${
-                  mainView === item.id
-                    ? 'bg-accent text-accent-foreground font-semibold'
-                    : 'text-muted-foreground hover:bg-muted-foreground/10 hover:text-background'
-                }`}
-              >
-                <item.icon className="w-6 h-6 flex-shrink-0" />
-                <span className="hidden lg:block">{item.label}</span>
-                {item.id === 'orders' && pendingOrders.length > 0 && (
-                  <span className="ml-auto w-6 h-6 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center">
-                    {pendingOrders.length}
-                  </span>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      {/* Staff Section */}
-      <div className="p-2 lg:p-4 border-t border-muted-foreground/20">
-        <button
-          onClick={() => setShowStaffModal(true)}
-          className="w-full flex items-center gap-3 px-3 lg:px-4 py-3 rounded-xl text-muted-foreground hover:bg-muted-foreground/10 hover:text-background transition-all"
-        >
-          <Fingerprint className="w-6 h-6 flex-shrink-0" />
-          <span className="hidden lg:block">Attendance</span>
-          {signedInStaff.length > 0 && (
-            <span className="ml-auto w-6 h-6 rounded-full bg-success text-success-foreground text-xs font-bold flex items-center justify-center">
-              {signedInStaff.length}
+  // Header Component
+  const Header = () => (
+    <header className="bg-background border-b border-border px-6 py-4 flex items-center justify-between">
+      <Link to="/" className="flex items-center gap-2">
+        <img src={washLabLogo} alt="WashLab" className="h-8 w-auto" />
+      </Link>
+      
+      <div className="flex items-center gap-4">
+        <button className="p-2 rounded-lg hover:bg-muted transition-colors">
+          <Sun className="w-5 h-5 text-muted-foreground" />
+        </button>
+        <button className="p-2 rounded-lg hover:bg-muted transition-colors relative">
+          <Bell className="w-5 h-5 text-muted-foreground" />
+          {pendingOrders.length > 0 && (
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
+              {pendingOrders.length}
             </span>
           )}
         </button>
-
-        {signedInStaff.length > 0 && (
-          <div className="mt-2 hidden lg:block">
-            {signedInStaff.map((staff) => (
-              <div key={staff.id} className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
-                <div className="w-2 h-2 rounded-full bg-success" />
-                <span className="truncate">{staff.name}</span>
-              </div>
-            ))}
+        <div className="flex items-center gap-3 pl-4 border-l border-border">
+          <div className="text-right">
+            <p className="font-semibold text-foreground text-sm">{signedInStaff[0]?.name || 'Staff'}</p>
+            <p className="text-xs text-muted-foreground">Shift Manager</p>
           </div>
-        )}
+          <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
+            <User className="w-5 h-5 text-accent-foreground" />
+          </div>
+        </div>
       </div>
-
-      {/* Home Link */}
-      <div className="p-2 lg:p-4">
-        <Link
-          to="/"
-          className="w-full flex items-center gap-3 px-3 lg:px-4 py-3 rounded-xl text-muted-foreground hover:bg-muted-foreground/10 hover:text-background transition-all"
-        >
-          <Home className="w-6 h-6 flex-shrink-0" />
-          <span className="hidden lg:block">Back to Home</span>
-        </Link>
-      </div>
-    </aside>
+    </header>
   );
 
-  // Step indicator for walk-in flow
-  const WalkinStepIndicator = () => {
-    const steps = [
-      { id: 'phone', label: 'Phone' },
-      { id: 'order', label: 'Order' },
-      { id: 'delivery', label: 'Delivery' },
-      { id: 'summary', label: 'Summary' },
-      { id: 'payment', label: 'Payment' },
-      { id: 'confirmation', label: 'Done' },
-    ];
-    const currentIndex = steps.findIndex(s => s.id === walkinStep);
-
-    return (
-      <div className="flex items-center justify-center gap-2 mb-8">
-        {steps.map((step, index) => (
-          <div key={step.id} className="flex items-center">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all ${
-              index <= currentIndex
-                ? 'bg-accent text-accent-foreground'
-                : 'bg-muted text-muted-foreground'
-            }`}>
-              {index < currentIndex ? <Check className="w-4 h-4" /> : index + 1}
+  // Dashboard View
+  const DashboardView = () => (
+    <div className="p-6 space-y-6">
+      {/* Welcome Section with Yellow Gradient */}
+      <div className="bg-gradient-to-r from-accent via-accent to-amber-400 rounded-2xl p-6 text-accent-foreground">
+        <h1 className="text-2xl font-bold mb-1">{getGreeting()}, {signedInStaff[0]?.name?.split(' ')[0] || 'Staff'}</h1>
+        <div className="flex items-center gap-2 text-sm opacity-80">
+          <Clock className="w-4 h-4" />
+          <span>{formatTime()} | {formatDate()}</span>
+        </div>
+        
+        {/* Stats Cards */}
+        <div className="grid grid-cols-5 gap-4 mt-6">
+          <div className="bg-accent-foreground/10 backdrop-blur-sm rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium opacity-80">ORDERS TODAY</span>
+              <ShoppingBag className="w-4 h-4 opacity-60" />
             </div>
-            {index < steps.length - 1 && (
-              <div className={`w-8 h-1 mx-1 rounded ${
-                index < currentIndex ? 'bg-accent' : 'bg-muted'
-              }`} />
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  // Phone Entry Screen
-  const PhoneScreen = () => (
-    <div className="max-w-md mx-auto">
-      <div className="text-center mb-8">
-        <div className="w-20 h-20 rounded-full bg-accent/20 flex items-center justify-center mx-auto mb-4">
-          <Phone className="w-10 h-10 text-accent" />
-        </div>
-        <h2 className="text-2xl font-bold text-foreground mb-2">Customer Phone</h2>
-        <p className="text-muted-foreground">Enter customer phone number to start</p>
-      </div>
-
-      <div className="space-y-4">
-        <div>
-          <Label className="text-foreground mb-2 block">Phone Number *</Label>
-          <Input
-            type="tel"
-            value={walkinData.phone}
-            onChange={(e) => setWalkinData(prev => ({ ...prev, phone: e.target.value }))}
-            placeholder="0XX XXX XXXX"
-            className="h-14 text-lg text-center bg-card border-border rounded-xl"
-          />
-        </div>
-
-        <div>
-          <Label className="text-foreground mb-2 block">Customer Name *</Label>
-          <Input
-            value={walkinData.name}
-            onChange={(e) => setWalkinData(prev => ({ ...prev, name: e.target.value }))}
-            placeholder="Enter name"
-            className="h-14 text-lg bg-card border-border rounded-xl"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label className="text-foreground mb-2 block">Hall/Building</Label>
-            <Input
-              value={walkinData.hall}
-              onChange={(e) => setWalkinData(prev => ({ ...prev, hall: e.target.value }))}
-              placeholder="e.g. Unity Hall"
-              className="h-12 bg-card border-border rounded-xl"
-            />
-          </div>
-          <div>
-            <Label className="text-foreground mb-2 block">Room</Label>
-            <Input
-              value={walkinData.room}
-              onChange={(e) => setWalkinData(prev => ({ ...prev, room: e.target.value }))}
-              placeholder="e.g. A201"
-              className="h-12 bg-card border-border rounded-xl"
-            />
-          </div>
-        </div>
-
-        <Button
-          onClick={() => setWalkinStep('order')}
-          disabled={!walkinData.phone || !walkinData.name}
-          className="w-full h-14 text-lg rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground"
-        >
-          Continue
-          <ChevronRight className="w-5 h-5 ml-2" />
-        </Button>
-      </div>
-    </div>
-  );
-
-  // Order Items Screen
-  const OrderScreen = () => {
-    const addItem = () => {
-      setWalkinData(prev => ({
-        ...prev,
-        items: [...prev.items, { category: '', quantity: 1 }]
-      }));
-    };
-
-    const updateItem = (index: number, field: 'category' | 'quantity', value: string | number) => {
-      setWalkinData(prev => ({
-        ...prev,
-        items: prev.items.map((item, i) => i === index ? { ...item, [field]: value } : item)
-      }));
-    };
-
-    const removeItem = (index: number) => {
-      setWalkinData(prev => ({
-        ...prev,
-        items: prev.items.filter((_, i) => i !== index)
-      }));
-    };
-
-    return (
-      <div className="max-w-2xl mx-auto">
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 rounded-full bg-accent/20 flex items-center justify-center mx-auto mb-4">
-            <Shirt className="w-10 h-10 text-accent" />
-          </div>
-          <h2 className="text-2xl font-bold text-foreground mb-2">Order Items</h2>
-          <p className="text-muted-foreground">Add items and enter weight</p>
-        </div>
-
-        {/* Weight and Bag Tag */}
-        <div className="bg-card rounded-2xl border border-border p-6 mb-6">
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div>
-              <Label className="text-foreground mb-2 block">Weight (kg) *</Label>
-              <div className="relative">
-                <Scale className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={walkinData.weight || ''}
-                  onChange={(e) => setWalkinData(prev => ({ ...prev, weight: parseFloat(e.target.value) || 0 }))}
-                  placeholder="0.0"
-                  className="pl-10 h-12 bg-muted border-border rounded-xl"
-                />
-              </div>
-            </div>
-            <div>
-              <Label className="text-foreground mb-2 block">Bag Tag # *</Label>
-              <div className="relative">
-                <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  type="number"
-                  value={walkinData.bagTag}
-                  onChange={(e) => setWalkinData(prev => ({ ...prev, bagTag: e.target.value }))}
-                  placeholder="10"
-                  className="pl-10 h-12 bg-muted border-border rounded-xl"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Has Whites Toggle */}
-          <button
-            onClick={() => setWalkinData(prev => ({ ...prev, hasWhites: !prev.hasWhites }))}
-            className={`w-full p-4 rounded-xl border-2 transition-all flex items-center justify-between ${
-              walkinData.hasWhites ? 'border-accent bg-accent/10' : 'border-border hover:border-muted-foreground'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">👕</span>
-              <div className="text-left">
-                <p className="font-medium text-foreground">Has Whites</p>
-                <p className="text-sm text-muted-foreground">Adds +1 load for separate wash</p>
-              </div>
-            </div>
-            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-              walkinData.hasWhites ? 'bg-accent border-accent' : 'border-muted-foreground'
-            }`}>
-              {walkinData.hasWhites && <Check className="w-4 h-4 text-accent-foreground" />}
-            </div>
-          </button>
-        </div>
-
-        {/* Item Categories */}
-        <div className="bg-card rounded-2xl border border-border p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-foreground">Item Categories</h3>
-            <Button variant="outline" size="sm" onClick={addItem} className="rounded-lg">
-              <Plus className="w-4 h-4 mr-1" />
-              Add Item
-            </Button>
+            <p className="text-3xl font-bold">{todayOrders.length}</p>
+            <p className="text-xs opacity-70">↗ +12% vs last week</p>
           </div>
           
-          <div className="space-y-3">
-            {walkinData.items.map((item, index) => (
-              <div key={index} className="flex gap-3 items-center">
-                <Select
-                  value={item.category}
-                  onValueChange={(v) => updateItem(index, 'category', v)}
-                >
-                  <SelectTrigger className="flex-1 h-11 rounded-lg bg-muted">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ITEM_CATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="number"
-                  min="1"
-                  value={item.quantity}
-                  onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                  className="w-20 h-11 text-center rounded-lg bg-muted"
-                />
-                <Button variant="ghost" size="icon" onClick={() => removeItem(index)} className="text-muted-foreground hover:text-destructive">
-                  <X className="w-5 h-5" />
-                </Button>
-              </div>
-            ))}
-            {walkinData.items.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                <Shirt className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                <p>Click "Add Item" to categorize clothes</p>
-              </div>
-            )}
+          <div className="bg-accent-foreground/10 backdrop-blur-sm rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium opacity-80">WALK-IN ORDERS</span>
+              <Users className="w-4 h-4 opacity-60" />
+            </div>
+            <p className="text-3xl font-bold">{walkInToday}</p>
+            <p className="text-xs opacity-70">↗ +12% vs last week</p>
           </div>
-        </div>
-
-        {/* Navigation */}
-        <div className="flex gap-4">
-          <Button
-            variant="outline"
-            onClick={() => setWalkinStep('phone')}
-            className="flex-1 h-14 text-lg rounded-xl"
-          >
-            <ChevronLeft className="w-5 h-5 mr-2" />
-            Back
-          </Button>
-          <Button
-            onClick={() => setWalkinStep('delivery')}
-            disabled={!walkinData.weight || !walkinData.bagTag || walkinData.items.length === 0}
-            className="flex-1 h-14 text-lg rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground"
-          >
-            Continue
-            <ChevronRight className="w-5 h-5 ml-2" />
-          </Button>
+          
+          <div className="bg-accent-foreground/10 backdrop-blur-sm rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium opacity-80">ONLINE ORDERS</span>
+              <Smartphone className="w-4 h-4 opacity-60" />
+            </div>
+            <p className="text-3xl font-bold">{onlineToday}</p>
+            <p className="text-xs opacity-70">↗ +12% vs last week</p>
+          </div>
+          
+          <div className="bg-accent-foreground/10 backdrop-blur-sm rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium opacity-80">COMPLETED</span>
+              <Package className="w-4 h-4 opacity-60" />
+            </div>
+            <p className="text-3xl font-bold">{completedToday}</p>
+            <p className="text-xs opacity-70">Ready for pickup</p>
+          </div>
+          
+          <div className="bg-accent-foreground/10 backdrop-blur-sm rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium opacity-80">DELIVERED</span>
+              <CheckCircle2 className="w-4 h-4 opacity-60" />
+            </div>
+            <p className="text-3xl font-bold">{deliveredToday}</p>
+            <p className="text-xs opacity-70">picked up</p>
+          </div>
         </div>
       </div>
-    );
-  };
 
-  // Delivery Options Screen
-  const DeliveryScreen = () => (
-    <div className="max-w-md mx-auto">
-      <div className="text-center mb-8">
-        <div className="w-20 h-20 rounded-full bg-accent/20 flex items-center justify-center mx-auto mb-4">
-          <Truck className="w-10 h-10 text-accent" />
-        </div>
-        <h2 className="text-2xl font-bold text-foreground mb-2">Delivery Option</h2>
-        <p className="text-muted-foreground">How will customer receive their laundry?</p>
-      </div>
-
-      <div className="space-y-4 mb-8">
-        <button
-          onClick={() => setWalkinData(prev => ({ ...prev, deliveryOption: 'pickup' }))}
-          className={`w-full p-6 rounded-2xl border-2 transition-all text-left ${
-            walkinData.deliveryOption === 'pickup'
-              ? 'border-accent bg-accent/10'
-              : 'border-border hover:border-muted-foreground bg-card'
-          }`}
-        >
-          <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-              walkinData.deliveryOption === 'pickup' ? 'bg-accent' : 'bg-muted'
-            }`}>
-              <Package className={`w-6 h-6 ${walkinData.deliveryOption === 'pickup' ? 'text-accent-foreground' : 'text-muted-foreground'}`} />
-            </div>
-            <div>
-              <p className="font-semibold text-lg text-foreground">Pickup at WashLab</p>
-              <p className="text-muted-foreground">Customer will pick up when ready</p>
-            </div>
-            {walkinData.deliveryOption === 'pickup' && (
-              <div className="ml-auto">
-                <CheckCircle2 className="w-6 h-6 text-accent" />
-              </div>
-            )}
+      <div className="grid grid-cols-3 gap-6">
+        {/* New Walk-In Order Card */}
+        <div className="col-span-2 bg-gradient-to-br from-amber-50 to-white border border-border rounded-2xl p-8 flex flex-col items-center justify-center min-h-[280px]">
+          <div className="w-16 h-16 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center mb-4">
+            <Plus className="w-8 h-8 text-muted-foreground" />
           </div>
-        </button>
-
-        <button
-          onClick={() => setWalkinData(prev => ({ ...prev, deliveryOption: 'delivery' }))}
-          className={`w-full p-6 rounded-2xl border-2 transition-all text-left ${
-            walkinData.deliveryOption === 'delivery'
-              ? 'border-accent bg-accent/10'
-              : 'border-border hover:border-muted-foreground bg-card'
-          }`}
-        >
-          <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-              walkinData.deliveryOption === 'delivery' ? 'bg-accent' : 'bg-muted'
-            }`}>
-              <Truck className={`w-6 h-6 ${walkinData.deliveryOption === 'delivery' ? 'text-accent-foreground' : 'text-muted-foreground'}`} />
-            </div>
-            <div>
-              <p className="font-semibold text-lg text-foreground">Delivery</p>
-              <p className="text-muted-foreground">Deliver to {walkinData.hall || 'their hall'}</p>
-            </div>
-            {walkinData.deliveryOption === 'delivery' && (
-              <div className="ml-auto">
-                <CheckCircle2 className="w-6 h-6 text-accent" />
-              </div>
-            )}
-          </div>
-        </button>
-      </div>
-
-      {/* Navigation */}
-      <div className="flex gap-4">
-        <Button
-          variant="outline"
-          onClick={() => setWalkinStep('order')}
-          className="flex-1 h-14 text-lg rounded-xl"
-        >
-          <ChevronLeft className="w-5 h-5 mr-2" />
-          Back
-        </Button>
-        <Button
-          onClick={() => setWalkinStep('summary')}
-          className="flex-1 h-14 text-lg rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground"
-        >
-          Continue
-          <ChevronRight className="w-5 h-5 ml-2" />
-        </Button>
-      </div>
-    </div>
-  );
-
-  // Order Summary Screen
-  const SummaryScreen = () => {
-    const { loads, totalPrice } = calculatePrice();
-
-    return (
-      <div className="max-w-lg mx-auto">
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 rounded-full bg-accent/20 flex items-center justify-center mx-auto mb-4">
-            <Receipt className="w-10 h-10 text-accent" />
-          </div>
-          <h2 className="text-2xl font-bold text-foreground mb-2">Order Summary</h2>
-          <p className="text-muted-foreground">Review before processing</p>
-        </div>
-
-        {/* Customer Info */}
-        <div className="bg-card rounded-2xl border border-border p-6 mb-4">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center">
-              <User className="w-6 h-6 text-accent" />
-            </div>
-            <div>
-              <p className="font-semibold text-foreground">{walkinData.name}</p>
-              <p className="text-muted-foreground">{walkinData.phone}</p>
-            </div>
-          </div>
-          {walkinData.hall && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <MapPin className="w-4 h-4" />
-              <span>{walkinData.hall}, Room {walkinData.room}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Order Details */}
-        <div className="bg-card rounded-2xl border border-border p-6 mb-4">
-          <h3 className="font-semibold text-foreground mb-4">Items</h3>
-          <div className="space-y-2 mb-4">
-            {walkinData.items.map((item, i) => (
-              <div key={i} className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{item.category}</span>
-                <span className="font-medium text-foreground">× {item.quantity}</span>
-              </div>
-            ))}
-          </div>
-          <div className="border-t border-border pt-4 space-y-2">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Weight</span>
-              <span className="font-medium text-foreground">{walkinData.weight} kg</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Loads</span>
-              <span className="font-medium text-foreground">{loads} {walkinData.hasWhites && '(+1 whites)'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Bag Tag</span>
-              <span className="font-medium text-foreground">#{walkinData.bagTag}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Delivery</span>
-              <span className="font-medium text-foreground capitalize">{walkinData.deliveryOption}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Total */}
-        <div className="bg-accent/20 rounded-2xl p-6 mb-6 text-center">
-          <p className="text-sm text-accent mb-1">Total Amount</p>
-          <p className="text-4xl font-bold text-accent">₵{totalPrice}</p>
-        </div>
-
-        {/* Navigation */}
-        <div className="flex gap-4">
-          <Button
-            variant="outline"
-            onClick={() => setWalkinStep('delivery')}
-            className="flex-1 h-14 text-lg rounded-xl"
+          <h2 className="text-xl font-bold text-foreground mb-2">New Walk-In Order</h2>
+          <p className="text-muted-foreground text-center mb-6 max-w-sm">
+            Start a new drop-off service for a walk-in customer. Quick entry for weigh-in and preferences.
+          </p>
+          <Button 
+            onClick={() => { setMainView('walkin'); resetWalkin(); }}
+            className="bg-accent hover:bg-accent/90 text-accent-foreground rounded-xl px-8 py-3 text-lg font-semibold"
           >
-            <ChevronLeft className="w-5 h-5 mr-2" />
-            Back
-          </Button>
-          <Button
-            onClick={processWalkinOrder}
-            className="flex-1 h-14 text-lg rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground"
-          >
-            Confirm Order
-            <Check className="w-5 h-5 ml-2" />
+            <Plus className="w-5 h-5 mr-2" />
+            Start Order
           </Button>
         </div>
-      </div>
-    );
-  };
 
-  // Payment Screen
-  const PaymentScreen = () => (
-    <div className="max-w-md mx-auto">
-      <div className="text-center mb-8">
-        <div className="w-20 h-20 rounded-full bg-accent/20 flex items-center justify-center mx-auto mb-4">
-          <Wallet className="w-10 h-10 text-accent" />
-        </div>
-        <h2 className="text-2xl font-bold text-foreground mb-2">Payment</h2>
-        <p className="text-muted-foreground">Select payment method</p>
-      </div>
-
-      {completedOrder && (
-        <>
-          {/* Order Badge */}
-          <div className="bg-success/10 border border-success/30 rounded-xl p-4 mb-6 flex items-center gap-3">
-            <CheckCircle2 className="w-6 h-6 text-success" />
-            <div>
-              <p className="font-semibold text-foreground">Order Created: {completedOrder.code}</p>
-              <p className="text-sm text-muted-foreground">Bag Tag: #{completedOrder.bagCardNumber}</p>
+        {/* Right Side Cards */}
+        <div className="space-y-4">
+          {/* Find Customer */}
+          <div className="bg-card border border-border rounded-2xl p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <User className="w-5 h-5 text-primary" />
+              </div>
+              <h3 className="font-semibold text-foreground">Find Customer</h3>
             </div>
-          </div>
-
-          {/* Amount */}
-          <div className="bg-card rounded-2xl border border-border p-6 mb-6 text-center">
-            <p className="text-sm text-muted-foreground mb-1">Amount Due</p>
-            <p className="text-4xl font-bold text-accent">₵{completedOrder.totalPrice}</p>
-          </div>
-
-          {/* Payment Methods */}
-          <div className="space-y-3 mb-6">
-            <button
-              onClick={() => processPayment('hubtel')}
-              className="w-full p-4 rounded-xl border-2 border-border hover:border-accent bg-card transition-all flex items-center gap-4"
-            >
-              <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
-                <Smartphone className="w-6 h-6 text-purple-600" />
-              </div>
-              <div className="text-left">
-                <p className="font-semibold text-foreground">Hubtel USSD</p>
-                <p className="text-sm text-muted-foreground">Send USSD to customer</p>
-              </div>
-              <ChevronRight className="w-5 h-5 ml-auto text-muted-foreground" />
-            </button>
-
-            <button
-              onClick={() => processPayment('momo')}
-              className="w-full p-4 rounded-xl border-2 border-border hover:border-accent bg-card transition-all flex items-center gap-4"
-            >
-              <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
-                <Phone className="w-6 h-6 text-amber-600" />
-              </div>
-              <div className="text-left">
-                <p className="font-semibold text-foreground">Mobile Money</p>
-                <p className="text-sm text-muted-foreground">MTN MoMo / Vodafone Cash</p>
-              </div>
-              <ChevronRight className="w-5 h-5 ml-auto text-muted-foreground" />
-            </button>
-
-            <button
-              onClick={() => processPayment('cash')}
-              className="w-full p-4 rounded-xl border-2 border-border hover:border-accent bg-card transition-all flex items-center gap-4"
-            >
-              <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-                <Banknote className="w-6 h-6 text-emerald-600" />
-              </div>
-              <div className="text-left">
-                <p className="font-semibold text-foreground">Cash</p>
-                <p className="text-sm text-muted-foreground">Log manual cash payment</p>
-              </div>
-              <ChevronRight className="w-5 h-5 ml-auto text-muted-foreground" />
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-
-  // Confirmation Screen
-  const ConfirmationScreen = () => (
-    <div className="max-w-md mx-auto text-center">
-      <div className="mb-8">
-        <div className="w-24 h-24 rounded-full bg-success/20 flex items-center justify-center mx-auto mb-6 animate-scale-in">
-          <Check className="w-12 h-12 text-success" />
-        </div>
-        <h2 className="text-3xl font-bold text-foreground mb-2">Order Complete!</h2>
-        <p className="text-muted-foreground">Payment received successfully</p>
-      </div>
-
-      {completedOrder && (
-        <>
-          <div className="bg-card rounded-2xl border border-border p-6 mb-6">
-            <div className="text-5xl font-bold text-foreground mb-2">{completedOrder.code}</div>
-            <p className="text-muted-foreground">Bag Tag: #{completedOrder.bagCardNumber}</p>
-          </div>
-
-          <div className="space-y-3">
-            <Button
-              onClick={() => sendWhatsAppReceipt(completedOrder)}
-              className="w-full h-14 text-lg rounded-xl bg-success hover:bg-success/90 text-success-foreground"
-            >
-              <MessageCircle className="w-5 h-5 mr-2" />
-              Send Receipt via WhatsApp
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => {
-                resetWalkin();
-                setCompletedOrder(null);
-                setMainView('dashboard');
-              }}
-              className="w-full h-14 text-lg rounded-xl"
-            >
-              Back to Dashboard
-            </Button>
-
-            <Button
-              variant="ghost"
-              onClick={() => {
-                resetWalkin();
-                setCompletedOrder(null);
-              }}
-              className="w-full h-14 text-lg rounded-xl"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              New Order
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by phone number..."
+                className="pl-10 h-11 rounded-xl bg-muted border-0"
+              />
+            </div>
+            <Button variant="outline" className="w-full rounded-xl h-11">
+              Search
             </Button>
           </div>
-        </>
-      )}
-    </div>
-  );
 
-  // Dashboard Content
-  const DashboardContent = () => (
-    <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search orders..."
-              className="pl-10 w-64 h-10 bg-card border-border rounded-xl"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-card rounded-2xl border border-border p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
-              <Package className="w-6 h-6 text-amber-600" />
+          {/* Online Orders */}
+          <div className="bg-card border border-border rounded-2xl p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
+                <Smartphone className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground">Online Orders</h3>
+                <p className="text-xs text-muted-foreground">You have {pendingOrders.length} pending orders from the mobile app waiting for intake.</p>
+              </div>
+              {pendingOrders.length > 0 && (
+                <span className="w-6 h-6 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center">
+                  {pendingOrders.length}
+                </span>
+              )}
             </div>
-            {pendingOrders.length > 0 && (
-              <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">
-                {pendingOrders.length} pending
-              </span>
-            )}
+            <Button 
+              onClick={() => setMainView('orders')}
+              className="w-full bg-accent hover:bg-accent/90 text-accent-foreground rounded-xl h-11"
+            >
+              View All
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
           </div>
-          <p className="text-2xl font-bold text-foreground">{pendingOrders.length}</p>
-          <p className="text-sm text-muted-foreground">Awaiting Check-in</p>
-        </div>
-
-        <div className="bg-card rounded-2xl border border-border p-6">
-          <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-4">
-            <Sparkles className="w-6 h-6 text-blue-600" />
-          </div>
-          <p className="text-2xl font-bold text-foreground">{activeOrders.length}</p>
-          <p className="text-sm text-muted-foreground">In Progress</p>
-        </div>
-
-        <div className="bg-card rounded-2xl border border-border p-6">
-          <div className="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center mb-4">
-            <Check className="w-6 h-6 text-success" />
-          </div>
-          <p className="text-2xl font-bold text-foreground">{readyOrders.length}</p>
-          <p className="text-sm text-muted-foreground">Ready for Pickup</p>
-        </div>
-
-        <div className="bg-card rounded-2xl border border-border p-6">
-          <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-4">
-            <Receipt className="w-6 h-6 text-purple-600" />
-          </div>
-          <p className="text-2xl font-bold text-foreground">{completedOrders.length}</p>
-          <p className="text-sm text-muted-foreground">Completed Today</p>
         </div>
       </div>
 
-      {/* Active Orders */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold text-foreground mb-4">Active Orders</h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...pendingOrders, ...activeOrders].map((order) => (
-            <div
-              key={order.id}
-              onClick={() => {
-                setSelectedOrder(order);
-                setShowOrderDetail(true);
-              }}
-              className="bg-card rounded-2xl border border-border p-5 hover:border-accent/50 hover:shadow-lg transition-all cursor-pointer"
-            >
-              <div className="flex items-start justify-between mb-3">
+      {/* Recent Activity */}
+      <div className="bg-card border border-border rounded-2xl">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <h3 className="font-semibold text-foreground">Recent Activity</h3>
+          <button className="text-sm text-primary hover:underline">View History</button>
+        </div>
+        <div className="divide-y divide-border">
+          {orders.slice(0, 3).map((order, i) => (
+            <div key={order.id} className="p-5 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  order.status === 'completed' ? 'bg-success/10 text-success' : 
+                  order.status === 'pending_dropoff' ? 'bg-accent/10 text-accent' :
+                  'bg-primary/10 text-primary'
+                }`}>
+                  {order.status === 'completed' ? <Check className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                </div>
                 <div>
-                  <p className="text-xl font-bold text-foreground">{order.code}</p>
+                  <p className="font-semibold text-foreground">
+                    {order.status === 'completed' ? 'Order Completed' : 'New Walk-In Created'}
+                  </p>
                   <p className="text-sm text-muted-foreground">
-                    {order.bagCardNumber ? `Bag #${order.bagCardNumber}` : 'No bag tag'}
+                    {order.code}: {order.customerName} • {new Date(order.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                   </p>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  order.status === 'pending_dropoff' ? 'bg-amber-100 text-amber-700' :
-                  order.status === 'checked_in' ? 'bg-blue-100 text-blue-700' :
-                  order.status === 'ready' ? 'bg-success/20 text-success' :
-                  'bg-muted text-muted-foreground'
-                }`}>
-                  {order.status.replace('_', ' ')}
-                </span>
               </div>
-              
-              <p className="font-medium text-foreground">{order.customerName}</p>
-              <p className="text-sm text-muted-foreground mb-3">{order.customerPhone}</p>
-              
-              {order.totalPrice && (
-                <div className="pt-3 border-t border-border flex justify-between items-center">
-                  <span className={`font-bold ${order.paymentStatus === 'paid' ? 'text-success' : 'text-accent'}`}>
-                    ₵{order.totalPrice}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {order.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
-                  </span>
-                </div>
-              )}
+              <Button variant="outline" size="sm" className="rounded-lg">
+                Details
+              </Button>
             </div>
           ))}
-          {pendingOrders.length === 0 && activeOrders.length === 0 && (
-            <div className="col-span-full bg-card rounded-2xl border border-border p-12 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                <ClipboardList className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <p className="text-muted-foreground">No active orders</p>
+          {orders.length === 0 && (
+            <div className="p-8 text-center text-muted-foreground">
+              No recent activity
             </div>
           )}
         </div>
       </div>
+
+      {/* Footer */}
+      <div className="text-center text-sm text-muted-foreground pt-4">
+        WashLab POS | Powered By Lider Technologies
+      </div>
     </div>
   );
 
-  // Orders List Content
-  const OrdersContent = () => (
-    <div>
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold text-foreground">All Orders</h1>
-      </div>
+  // Number Pad for Phone Entry
+  const NumberPad = ({ onDigit, onClear, onBackspace }: { onDigit: (d: string) => void; onClear: () => void; onBackspace: () => void }) => (
+    <div className="grid grid-cols-3 gap-3">
+      {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(digit => (
+        <button
+          key={digit}
+          onClick={() => onDigit(digit)}
+          className="h-14 rounded-xl bg-card border border-border text-xl font-semibold text-foreground hover:bg-muted transition-colors"
+        >
+          {digit}
+        </button>
+      ))}
+      <button
+        onClick={onClear}
+        className="h-14 rounded-xl bg-destructive/10 border border-destructive/20 text-xl font-semibold text-destructive hover:bg-destructive/20 transition-colors"
+      >
+        <X className="w-5 h-5 mx-auto" />
+      </button>
+      <button
+        onClick={() => onDigit('0')}
+        className="h-14 rounded-xl bg-card border border-border text-xl font-semibold text-foreground hover:bg-muted transition-colors"
+      >
+        0
+      </button>
+      <button
+        onClick={onBackspace}
+        className="h-14 rounded-xl bg-muted border border-border text-xl font-semibold text-foreground hover:bg-muted/80 transition-colors"
+      >
+        <Delete className="w-5 h-5 mx-auto" />
+      </button>
+    </div>
+  );
 
-      <div className="space-y-4">
-        {orders.map((order) => (
-          <div
-            key={order.id}
-            onClick={() => {
-              setSelectedOrder(order);
-              setShowOrderDetail(true);
-            }}
-            className="bg-card rounded-xl border border-border p-4 hover:border-accent/50 transition-all cursor-pointer flex items-center gap-4"
-          >
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="font-bold text-foreground">{order.code}</span>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                  order.status === 'pending_dropoff' ? 'bg-amber-100 text-amber-700' :
-                  order.status === 'ready' ? 'bg-success/20 text-success' :
-                  'bg-muted text-muted-foreground'
-                }`}>
-                  {order.status.replace('_', ' ')}
-                </span>
+  // Phone Entry Screen (Figma style)
+  const PhoneScreen = () => {
+    const formatPhone = (phone: string) => {
+      const cleaned = phone.replace(/\D/g, '');
+      if (cleaned.length <= 2) return cleaned;
+      if (cleaned.length <= 5) return `${cleaned.slice(0, 2)} ${cleaned.slice(2)}`;
+      if (cleaned.length <= 9) return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5)}`;
+      return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5, 9)}`;
+    };
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-accent via-amber-400 to-amber-300 relative">
+        <Header />
+        
+        <div className="p-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white/95 backdrop-blur-sm rounded-3xl p-8 shadow-xl">
+              <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold text-primary mb-2">New Walk-in Order</h1>
+                <p className="text-muted-foreground">Enter the customer's mobile number to identify an existing profile or create a new one.</p>
               </div>
-              <p className="text-sm text-muted-foreground">{order.customerName} • {order.customerPhone}</p>
+
+              <div className="grid grid-cols-2 gap-8">
+                {/* Left: Phone Input */}
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground mb-2 block">MOBILE NUMBER</Label>
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="bg-muted rounded-xl px-4 py-4 text-lg font-semibold text-foreground">
+                      +233
+                    </div>
+                    <div className="flex-1 relative">
+                      <Input
+                        value={formatPhone(walkinData.phone)}
+                        readOnly
+                        placeholder="XX XXX XXXX"
+                        className="h-14 text-2xl font-semibold bg-card border-2 border-border rounded-xl text-foreground"
+                      />
+                      <Phone className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    </div>
+                  </div>
+
+                  {/* Customer Status */}
+                  <div className="bg-muted/50 rounded-xl p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-foreground">New Customer</p>
+                      <p className="text-sm text-muted-foreground">This number is not in our system. A new profile will be created.</p>
+                    </div>
+                    <span className="px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full">NEW</span>
+                  </div>
+
+                  <Button
+                    onClick={() => {
+                      if (walkinData.phone.length >= 9) {
+                        setWalkinData(prev => ({ ...prev, name: 'John Doe' }));
+                        setWalkinStep('order');
+                      }
+                    }}
+                    disabled={walkinData.phone.length < 9}
+                    className="w-full h-14 mt-6 text-lg rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                  >
+                    Create Profile & Continue
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </div>
+
+                {/* Right: Number Pad */}
+                <div>
+                  <NumberPad
+                    onDigit={(d) => setWalkinData(prev => ({ ...prev, phone: prev.phone.length < 10 ? prev.phone + d : prev.phone }))}
+                    onClear={() => setWalkinData(prev => ({ ...prev, phone: '' }))}
+                    onBackspace={() => setWalkinData(prev => ({ ...prev, phone: prev.phone.slice(0, -1) }))}
+                  />
+                </div>
+              </div>
             </div>
-            {order.totalPrice && (
-              <p className={`font-bold ${order.paymentStatus === 'paid' ? 'text-success' : 'text-accent'}`}>
-                ₵{order.totalPrice}
-              </p>
-            )}
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
           </div>
-        ))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  // Main Render
-  return (
-    <div className="min-h-screen bg-muted/30">
-      <Sidebar />
-      
-      {/* Main Content */}
-      <main className="ml-20 lg:ml-64 min-h-screen p-6 lg:p-8">
-        {mainView === 'dashboard' && <DashboardContent />}
-        {mainView === 'orders' && <OrdersContent />}
-        {mainView === 'customers' && (
-          <div className="text-center py-20">
-            <Users className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-            <h2 className="text-xl font-semibold text-foreground mb-2">Customers</h2>
-            <p className="text-muted-foreground">Customer management coming soon</p>
-          </div>
-        )}
-        {mainView === 'walkin' && (
-          <div>
-            <WalkinStepIndicator />
-            {walkinStep === 'phone' && <PhoneScreen />}
-            {walkinStep === 'order' && <OrderScreen />}
-            {walkinStep === 'delivery' && <DeliveryScreen />}
-            {walkinStep === 'summary' && <SummaryScreen />}
-            {walkinStep === 'payment' && <PaymentScreen />}
-            {walkinStep === 'confirmation' && <ConfirmationScreen />}
-          </div>
-        )}
-      </main>
+  // Order Details Screen (Figma style)
+  const OrderScreen = () => {
+    const orderCode = `ORD-${Math.floor(Math.random() * 9000) + 1000}`;
+    const currentDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-      {/* Order Detail Modal */}
-      <Dialog open={showOrderDetail} onOpenChange={setShowOrderDetail}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Order {selectedOrder?.code}</DialogTitle>
-          </DialogHeader>
-          {selectedOrder && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 p-4 bg-muted rounded-xl">
-                <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center">
-                  <User className="w-6 h-6 text-accent" />
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-amber-50">
+        <Header />
+        
+        <div className="p-6">
+          {/* Order Header */}
+          <div className="bg-gradient-to-r from-accent via-accent to-amber-400 rounded-2xl p-6 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl font-bold text-accent-foreground">Order #{orderCode}</h1>
+                  <span className="px-3 py-1 bg-accent-foreground/20 text-accent-foreground text-xs font-semibold rounded-full">WALK-IN</span>
                 </div>
-                <div>
-                  <p className="font-semibold text-foreground">{selectedOrder.customerName}</p>
-                  <p className="text-sm text-muted-foreground">{selectedOrder.customerPhone}</p>
-                </div>
+                <p className="text-accent-foreground/80">Customer: {walkinData.name || 'John Doe'}</p>
               </div>
-
-              {selectedOrder.items.length > 0 && (
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground mb-2">Items</p>
-                  <div className="space-y-1">
-                    {selectedOrder.items.map((item, i) => (
-                      <div key={i} className="flex justify-between text-sm">
-                        <span>{item.category}</span>
-                        <span>× {item.quantity}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Status</p>
-                  <p className="font-semibold capitalize">{selectedOrder.status.replace('_', ' ')}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Payment</p>
-                  <p className="font-semibold capitalize">{selectedOrder.paymentStatus}</p>
-                </div>
-                {selectedOrder.weight && (
-                  <div>
-                    <p className="text-muted-foreground">Weight</p>
-                    <p className="font-semibold">{selectedOrder.weight} kg</p>
-                  </div>
-                )}
-                {selectedOrder.totalPrice && (
-                  <div>
-                    <p className="text-muted-foreground">Total</p>
-                    <p className="font-semibold text-accent">₵{selectedOrder.totalPrice}</p>
-                  </div>
-                )}
+              <div className="text-right">
+                <p className="text-sm text-accent-foreground/60">CURRENT DATE</p>
+                <p className="text-accent-foreground font-semibold">{currentDate}</p>
               </div>
+            </div>
+          </div>
 
-              {/* Status Update Buttons */}
-              <div className="pt-4 border-t border-border">
-                <p className="text-sm font-semibold text-muted-foreground mb-2">Update Status</p>
-                <div className="flex flex-wrap gap-2">
-                  {ORDER_STAGES.map((stage) => (
-                    <Button
-                      key={stage.status}
-                      variant={selectedOrder.status === stage.status ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => handleUpdateOrderStatus(selectedOrder.id, stage.status)}
-                      className="rounded-lg"
+          <div className="grid grid-cols-2 gap-6">
+            {/* Left Column */}
+            <div className="space-y-6">
+              {/* Service Selection */}
+              <div className="bg-card border border-border rounded-2xl p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Droplets className="w-5 h-5 text-accent" />
+                  <h3 className="font-semibold text-foreground">Select Service</h3>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {serviceTypes.map(service => (
+                    <button
+                      key={service.id}
+                      onClick={() => setWalkinData(prev => ({ ...prev, serviceType: service.id as any }))}
+                      className={`p-4 rounded-xl border-2 transition-all ${
+                        walkinData.serviceType === service.id
+                          ? 'border-accent bg-accent text-accent-foreground'
+                          : 'border-border bg-card hover:border-muted-foreground'
+                      }`}
                     >
-                      {stage.label}
+                      <service.icon className={`w-6 h-6 mx-auto mb-2 ${
+                        walkinData.serviceType === service.id ? 'text-accent-foreground' : 'text-muted-foreground'
+                      }`} />
+                      {walkinData.serviceType === service.id && (
+                        <CheckCircle2 className="w-4 h-4 absolute top-2 right-2" />
+                      )}
+                      <p className={`font-semibold text-sm ${walkinData.serviceType === service.id ? 'text-accent-foreground' : 'text-foreground'}`}>
+                        {service.label}
+                      </p>
+                      <p className={`text-xs ${walkinData.serviceType === service.id ? 'text-accent-foreground/80' : 'text-muted-foreground'}`}>
+                        {service.tokens} token • GHS {service.price}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Order Notes */}
+              <div className="bg-card border border-border rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-foreground">Order Notes</h3>
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">OPTIONAL</span>
+                </div>
+                <Textarea
+                  value={walkinData.notes}
+                  onChange={(e) => setWalkinData(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Add special instructions, stain details, or specific care requests..."
+                  className="min-h-[100px] bg-muted border-0 rounded-xl"
+                />
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-6">
+              {/* Weight */}
+              <div className="bg-card border border-border rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Scale className="w-5 h-5 text-accent" />
+                    <h3 className="font-semibold text-foreground">Total Weight</h3>
+                  </div>
+                  <span className="text-xs text-destructive bg-destructive/10 px-2 py-1 rounded font-semibold">REQUIRED</span>
+                </div>
+                <div className="flex items-center justify-center gap-4">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-12 w-12 rounded-xl"
+                    onClick={() => setWalkinData(prev => ({ ...prev, weight: Math.max(0.5, prev.weight - 0.5) }))}
+                  >
+                    <Minus className="w-5 h-5" />
+                  </Button>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-5xl font-bold text-foreground">{walkinData.weight.toFixed(1)}</span>
+                    <span className="text-xl text-muted-foreground">KG</span>
+                  </div>
+                  <Button
+                    className="h-12 w-12 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground"
+                    onClick={() => setWalkinData(prev => ({ ...prev, weight: prev.weight + 0.5 }))}
+                  >
+                    <Plus className="w-5 h-5" />
+                  </Button>
+                </div>
+                <div className="flex gap-2 mt-4 justify-center">
+                  {[0.5, 1.0, 5.0].map(w => (
+                    <Button
+                      key={w}
+                      variant="outline"
+                      size="sm"
+                      className="rounded-lg"
+                      onClick={() => setWalkinData(prev => ({ ...prev, weight: prev.weight + w }))}
+                    >
+                      + {w}
                     </Button>
                   ))}
                 </div>
               </div>
 
-              {selectedOrder.status === 'ready' && (
-                <Button
-                  onClick={() => {
-                    const message = encodeURIComponent(
-                      `🧺 *WashLab Order Ready!*\n\nYour order *${selectedOrder.code}* is ready for pickup!\n\nBag Tag: #${selectedOrder.bagCardNumber}\n\nReply:\n*1* – I'll pick up at WashLab\n*2* – Please deliver to my room`
-                    );
-                    const phone = selectedOrder.customerPhone.startsWith('0') ? `233${selectedOrder.customerPhone.slice(1)}` : selectedOrder.customerPhone;
-                    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
-                  }}
-                  className="w-full bg-success hover:bg-success/90"
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Notify Customer via WhatsApp
-                </Button>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Staff Attendance Modal */}
-      <Dialog open={showStaffModal} onOpenChange={setShowStaffModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Staff Attendance</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {signedInStaff.length > 0 && (
-              <div>
-                <p className="text-sm font-semibold text-muted-foreground mb-2">Currently Signed In</p>
-                <div className="space-y-2">
-                  {signedInStaff.map((staff) => (
-                    <div key={staff.id} className="flex items-center justify-between p-3 bg-muted rounded-xl">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-success/20 flex items-center justify-center">
-                          <span className="font-bold text-success">{staff.name.charAt(0)}</span>
-                        </div>
-                        <div>
-                          <p className="font-medium">{staff.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Since {staff.signedInAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleStaffSignOut(staff.id)}
-                        className="text-destructive"
-                      >
-                        <LogOut className="w-4 h-4" />
-                      </Button>
-                    </div>
+              {/* Item Count */}
+              <div className="bg-card border border-border rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Package className="w-5 h-5 text-accent" />
+                    <h3 className="font-semibold text-foreground">Item Count</h3>
+                  </div>
+                  <span className="text-xs text-destructive bg-destructive/10 px-2 py-1 rounded font-semibold">REQUIRED</span>
+                </div>
+                <div className="flex items-center justify-center gap-4">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-12 w-12 rounded-xl"
+                    onClick={() => setWalkinData(prev => ({ ...prev, itemCount: Math.max(1, prev.itemCount - 1) }))}
+                  >
+                    <Minus className="w-5 h-5" />
+                  </Button>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-5xl font-bold text-foreground">{walkinData.itemCount}</span>
+                    <span className="text-xl text-muted-foreground">PCS</span>
+                  </div>
+                  <Button
+                    className="h-12 w-12 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground"
+                    onClick={() => setWalkinData(prev => ({ ...prev, itemCount: prev.itemCount + 1 }))}
+                  >
+                    <Plus className="w-5 h-5" />
+                  </Button>
+                </div>
+                <div className="flex gap-2 mt-4 justify-center">
+                  {[10, 20, 50, 40].map(c => (
+                    <Button
+                      key={c}
+                      variant="outline"
+                      size="sm"
+                      className="rounded-lg"
+                      onClick={() => setWalkinData(prev => ({ ...prev, itemCount: prev.itemCount + c }))}
+                    >
+                      + {c}
+                    </Button>
                   ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Bar */}
+          <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4">
+            <div className="max-w-5xl mx-auto flex items-center justify-between">
+              <div className="flex items-center gap-8 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Total Number of Toiletries</span>
+                  <p className="font-bold text-lg">2</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Estimated Total</span>
+                  <p className="font-bold text-lg text-primary">₵{calculatePrice().total.toFixed(2)}</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setWalkinStep('phone')}
+                  className="rounded-xl px-6"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => setWalkinStep('delivery')}
+                  className="bg-foreground hover:bg-foreground/90 text-background rounded-xl px-8"
+                >
+                  Confirm Order
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Delivery Selection Screen (Figma style)
+  const DeliveryScreen = () => (
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-100 relative">
+      {/* Background Image */}
+      <div className="absolute inset-0 opacity-20">
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1519003722824-194d4455a60c?w=1920')] bg-cover bg-center" />
+      </div>
+      
+      <div className="relative z-10">
+        <Header />
+        
+        <div className="p-6 max-w-5xl mx-auto">
+          <div className="bg-white/95 backdrop-blur-sm rounded-3xl p-8 shadow-xl">
+            <h1 className="text-2xl font-bold text-foreground mb-2">Select Logistics Method</h1>
+            <p className="text-muted-foreground mb-8">How will the customer receive their laundry?</p>
+
+            <div className="grid grid-cols-2 gap-6 mb-8">
+              {/* Store Pickup */}
+              <button
+                onClick={() => setWalkinData(prev => ({ ...prev, deliveryOption: 'pickup', deliveryFee: 0 }))}
+                className={`relative rounded-2xl overflow-hidden border-2 transition-all ${
+                  walkinData.deliveryOption === 'pickup' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-muted-foreground'
+                }`}
+              >
+                <div className="h-40 bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center">
+                  <div className="text-6xl">🏪</div>
+                </div>
+                <div className="p-4 bg-white">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Package className="w-5 h-5 text-muted-foreground" />
+                    <span className="font-semibold text-foreground">Store Pickup</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Customer collects at store</p>
+                  <span className="inline-block mt-2 px-2 py-1 bg-success/10 text-success text-xs font-semibold rounded">Free</span>
+                </div>
+                {walkinData.deliveryOption === 'pickup' && (
+                  <div className="absolute top-3 right-3">
+                    <CheckCircle2 className="w-6 h-6 text-primary" />
+                  </div>
+                )}
+              </button>
+
+              {/* Delivery */}
+              <button
+                onClick={() => setWalkinData(prev => ({ ...prev, deliveryOption: 'delivery', deliveryFee: 5 }))}
+                className={`relative rounded-2xl overflow-hidden border-2 transition-all ${
+                  walkinData.deliveryOption === 'delivery' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-muted-foreground'
+                }`}
+              >
+                <div className="h-40 bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center">
+                  <div className="text-6xl">🚚</div>
+                </div>
+                <div className="p-4 bg-white">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Truck className="w-5 h-5 text-muted-foreground" />
+                    <span className="font-semibold text-foreground">Delivery</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">We deliver to customer</p>
+                  <span className="inline-block mt-2 px-2 py-1 bg-accent/10 text-accent-foreground text-xs font-semibold rounded">Fees apply</span>
+                </div>
+                {walkinData.deliveryOption === 'delivery' && (
+                  <div className="absolute top-3 right-3">
+                    <CheckCircle2 className="w-6 h-6 text-primary" />
+                  </div>
+                )}
+              </button>
+            </div>
+
+            {/* Delivery Details */}
+            {walkinData.deliveryOption === 'delivery' && (
+              <div className="bg-muted/50 rounded-xl p-6 mb-8">
+                <div className="flex items-center gap-2 mb-4">
+                  <MapPin className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold text-foreground">Delivery Details</h3>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-1 block">Delivery Address</Label>
+                    <div className="relative">
+                      <Input
+                        value={walkinData.deliveryAddress}
+                        onChange={(e) => setWalkinData(prev => ({ ...prev, deliveryAddress: e.target.value }))}
+                        placeholder="1234 Main St, Springfield"
+                        className="pr-12 h-12 rounded-xl bg-white border-border"
+                      />
+                      <button className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-success rounded-lg">
+                        <MapPin className="w-4 h-4 text-success-foreground" />
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground mb-1 block">Delivery Instructions (Optional)</Label>
+                    <Input
+                      value={walkinData.deliveryInstructions}
+                      onChange={(e) => setWalkinData(prev => ({ ...prev, deliveryInstructions: e.target.value }))}
+                      placeholder="Gate code, leave at door, etc..."
+                      className="h-12 rounded-xl bg-white border-border"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-border">
+                    <span className="text-muted-foreground">Estimated Delivery Fee</span>
+                    <span className="font-bold text-foreground">+ ₵5.00</span>
+                  </div>
                 </div>
               </div>
             )}
 
-            <div className="pt-4 border-t border-border">
-              <Button
-                onClick={handleStaffSignIn}
-                disabled={isProcessing}
-                className="w-full h-12 bg-accent hover:bg-accent/90 text-accent-foreground rounded-xl"
+            {/* Bottom Actions */}
+            <div className="flex items-center justify-between">
+              <Button 
+                variant="outline" 
+                onClick={() => setWalkinStep('order')}
+                className="rounded-xl px-6"
               >
-                <Fingerprint className="w-5 h-5 mr-2" />
-                {isProcessing ? 'Verifying...' : 'Sign In with Face ID'}
+                Back
               </Button>
-              
-              <div className="mt-4">
-                <p className="text-sm text-muted-foreground text-center mb-2">Or manual sign in</p>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Staff name"
-                    className="flex-1"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && e.currentTarget.value) {
-                        handleManualSignIn(e.currentTarget.value);
-                        e.currentTarget.value = '';
-                      }
-                    }}
-                  />
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <span className="text-sm text-muted-foreground">TOTAL EXTRA</span>
+                  <p className="font-bold text-lg">₵{walkinData.deliveryFee.toFixed(2)}</p>
+                </div>
+                <Button 
+                  onClick={() => setWalkinStep('summary')}
+                  className="bg-foreground hover:bg-foreground/90 text-background rounded-xl px-8"
+                >
+                  Continue
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Order Summary Screen (Figma style)
+  const SummaryScreen = () => {
+    const { subtotal, tax, serviceFee, deliveryFee, total } = calculatePrice();
+    const service = serviceTypes.find(s => s.id === walkinData.serviceType);
+
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        
+        <div className="p-6 max-w-5xl mx-auto">
+          <div className="bg-card rounded-3xl border border-border overflow-hidden shadow-lg">
+            <div className="p-6 border-b border-border">
+              <h1 className="text-2xl font-bold text-foreground">Order Summary</h1>
+              <p className="text-muted-foreground">Review the order details before proceeding to payment.</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-0">
+              {/* Left: Image */}
+              <div className="bg-gradient-to-br from-amber-50 to-white p-8 flex items-center justify-center">
+                <img 
+                  src={stackedClothes} 
+                  alt="Laundry basket" 
+                  className="max-w-xs rounded-2xl shadow-lg"
+                />
+              </div>
+
+              {/* Right: Details */}
+              <div className="p-6">
+                {/* Customer Info */}
+                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-border">
+                  <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center">
+                    <User className="w-6 h-6 text-accent-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-foreground">{walkinData.name || 'Jane Doe'}</p>
+                    <p className="text-sm text-muted-foreground">+233 {walkinData.phone}</p>
+                    <span className="text-xs text-primary">Loyalty Member</span>
+                  </div>
+                  <Button variant="link" className="text-primary">Edit Customer</Button>
+                </div>
+
+                {/* Logistics & Notes */}
+                <div className="grid grid-cols-2 gap-6 mb-6">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">LOGISTICS</p>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-primary" />
+                      <div>
+                        <p className="font-semibold text-foreground">
+                          {walkinData.deliveryOption === 'pickup' ? 'Pickup Tomorrow' : 'Delivery'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {walkinData.deliveryOption === 'pickup' ? 'Wednesday, Oct 24 • 5:00 PM' : walkinData.deliveryAddress}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">NOTES</p>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-accent" />
+                      <div>
+                        <p className="font-semibold text-foreground">Special Instructions</p>
+                        <p className="text-sm text-muted-foreground">{walkinData.notes || 'No bleach, cold wash only for delicates.'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Service Items */}
+                <div className="border-t border-border pt-4 mb-6">
+                  <div className="grid grid-cols-4 gap-4 text-xs text-muted-foreground mb-3">
+                    <span>SERVICE / ITEM</span>
+                    <span>DETAILS</span>
+                    <span></span>
+                    <span className="text-right">PRICE</span>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-4 gap-4 items-center">
+                      <div>
+                        <p className="font-semibold text-foreground">{service?.label}</p>
+                        <p className="text-xs text-muted-foreground">General clothing</p>
+                      </div>
+                      <span className="text-sm text-muted-foreground">{walkinData.weight}kg • ₵21.50/lb</span>
+                      <span></span>
+                      <span className="font-semibold text-right">₵{subtotal.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pricing Breakdown */}
+                <div className="space-y-2 border-t border-border pt-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span className="text-foreground">₵{subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Tax (8%)</span>
+                    <span className="text-foreground">₵{tax.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Service Fee</span>
+                    <span className="text-foreground">₵{serviceFee.toFixed(2)}</span>
+                  </div>
+                  {deliveryFee > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Delivery Fee</span>
+                      <span className="text-foreground">₵{deliveryFee.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between pt-4 border-t border-border">
+                    <span className="font-semibold text-foreground">Total</span>
+                    <span className="text-2xl font-bold text-primary">₵{total.toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-border">
-              <Button
-                variant="outline"
-                onClick={() => setShowEnrollDialog(true)}
-                className="w-full"
+            {/* Bottom Actions */}
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-border bg-muted/30">
+              <Button 
+                variant="outline" 
+                onClick={() => setWalkinStep('delivery')}
+                className="rounded-xl px-6"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Enroll New Staff
+                Edit Order
+              </Button>
+              <Button 
+                onClick={processWalkinOrder}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-8"
+              >
+                Proceed to Payment
+                <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </div>
+    );
+  };
 
-      {/* Enroll Staff Dialog */}
-      <Dialog open={showEnrollDialog} onOpenChange={setShowEnrollDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Enroll New Staff</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Staff Name</Label>
-              <Input
-                value={enrollName}
-                onChange={(e) => setEnrollName(e.target.value)}
-                placeholder="Enter staff name"
-              />
+  // Payment Screen (Figma style)
+  const PaymentScreen = () => {
+    const { subtotal, tax, serviceFee, deliveryFee, total } = calculatePrice();
+    const service = serviceTypes.find(s => s.id === walkinData.serviceType);
+
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        
+        <div className="p-6">
+          <div className="max-w-6xl mx-auto grid grid-cols-3 gap-6">
+            {/* Left: Customer & Order Summary */}
+            <div className="bg-gradient-to-b from-accent/20 to-white border border-border rounded-2xl overflow-hidden">
+              <div className="p-4 border-b border-border">
+                <p className="text-xs text-muted-foreground mb-1">CUSTOMER DETAILS</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
+                    <User className="w-5 h-5 text-accent-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">{walkinData.name || 'Alice Smith'}</p>
+                    <p className="text-sm text-muted-foreground">+233 {walkinData.phone}</p>
+                    <p className="text-xs text-primary">{walkinData.name || 'alice.smith'}@gmail.com</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4">
+                <p className="text-xs text-muted-foreground mb-3">ORDER SUMMARY</p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <div>
+                      <p className="text-foreground">{service?.label} (Regular)</p>
+                      <p className="text-xs text-muted-foreground">Colors, Cool Wash</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-muted-foreground">{walkinData.weight}kg</span>
+                      <p className="font-semibold">₵{subtotal.toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-border space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span>₵{subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-primary">
+                    <span>Tax (8%)</span>
+                    <span>₵{tax.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-border">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold">Grand Total</span>
+                    <span className="text-2xl font-bold text-primary">₵{total.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
             </div>
+
+            {/* Right: Payment Options */}
+            <div className="col-span-2 space-y-6">
+              <div className="bg-card border border-border rounded-2xl p-6">
+                <h2 className="text-xl font-bold text-foreground mb-2">Process Payment</h2>
+                <p className="text-muted-foreground mb-6">Select payment method to complete the transaction.</p>
+
+                {/* Payment Method Selection */}
+                <div className="mb-6">
+                  <p className="text-sm text-muted-foreground mb-3">Payment Method</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <button
+                      onClick={() => setPaymentMethod('mobile_money')}
+                      className={`p-4 rounded-xl border-2 transition-all ${
+                        paymentMethod === 'mobile_money' 
+                          ? 'border-foreground bg-foreground text-background' 
+                          : 'border-border hover:border-muted-foreground'
+                      }`}
+                    >
+                      <Smartphone className={`w-6 h-6 mx-auto mb-2 ${paymentMethod === 'mobile_money' ? 'text-background' : 'text-muted-foreground'}`} />
+                      {paymentMethod === 'mobile_money' && <Check className="w-4 h-4 absolute top-2 right-2" />}
+                      <p className={`font-semibold text-sm ${paymentMethod === 'mobile_money' ? 'text-background' : 'text-foreground'}`}>
+                        Mobile Money
+                      </p>
+                    </button>
+                    <button
+                      onClick={() => setPaymentMethod('card')}
+                      className={`p-4 rounded-xl border-2 transition-all ${
+                        paymentMethod === 'card' 
+                          ? 'border-foreground bg-foreground text-background' 
+                          : 'border-border hover:border-muted-foreground'
+                      }`}
+                    >
+                      <CreditCard className={`w-6 h-6 mx-auto mb-2 ${paymentMethod === 'card' ? 'text-background' : 'text-muted-foreground'}`} />
+                      <p className={`font-semibold text-sm ${paymentMethod === 'card' ? 'text-background' : 'text-foreground'}`}>
+                        Card
+                      </p>
+                    </button>
+                    <button
+                      onClick={() => setPaymentMethod('cash')}
+                      className={`p-4 rounded-xl border-2 transition-all opacity-50 cursor-not-allowed ${
+                        paymentMethod === 'cash' 
+                          ? 'border-foreground bg-foreground text-background' 
+                          : 'border-border'
+                      }`}
+                    >
+                      <Banknote className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+                      <p className="font-semibold text-sm text-muted-foreground">Cash</p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mobile Money Details */}
+                {paymentMethod === 'mobile_money' && (
+                  <div className="bg-muted/50 rounded-xl p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Smartphone className="w-5 h-5 text-foreground" />
+                      <span className="font-semibold text-foreground">Mobile Money Transfer</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <Label className="text-sm text-muted-foreground mb-1 block">Total Amount</Label>
+                        <div className="bg-muted rounded-xl px-4 py-3">
+                          <span className="text-lg font-bold text-foreground">₵ {total.toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm text-muted-foreground mb-1 block">PROVIDER</Label>
+                        <div className="flex gap-2">
+                          <button className="flex-1 px-3 py-2 bg-foreground text-background rounded-lg text-sm font-semibold">
+                            ● MTN / Default
+                          </button>
+                          <button className="flex-1 px-3 py-2 bg-muted text-muted-foreground rounded-lg text-sm">
+                            Other
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <Label className="text-sm text-muted-foreground mb-1 block">Customer Phone Number</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                        <Input
+                          value={`+233 ${walkinData.phone}`}
+                          readOnly
+                          className="pl-12 h-12 rounded-xl bg-accent border-accent text-foreground font-semibold"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Check provider format before sending request.</p>
+                      <button className="text-xs text-destructive mt-1">⚠ Verify number with customer</button>
+                    </div>
+
+                    <Button
+                      onClick={() => processPayment('momo')}
+                      className="mt-4 bg-foreground hover:bg-foreground/90 text-background rounded-xl px-6"
+                    >
+                      <Smartphone className="w-4 h-4 mr-2" />
+                      Request Payment
+                    </Button>
+                  </div>
+                )}
+
+                {/* Order Warning */}
+                <div className="flex items-center gap-2 mt-6 text-sm text-muted-foreground">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>Order cannot be finalized until payment is confirmed.</span>
+                </div>
+              </div>
+
+              {/* Finalize Button */}
+              <Button
+                onClick={() => processPayment(paymentMethod === 'mobile_money' ? 'momo' : paymentMethod === 'card' ? 'hubtel' : 'cash')}
+                className="w-full h-14 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-lg font-semibold"
+                disabled={!completedOrder}
+              >
+                Finalize Order
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Decorative Image */}
+          <div className="fixed bottom-0 right-0 w-64 opacity-30 pointer-events-none">
+            <img src={stackedClothes} alt="" className="w-full" />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Confirmation Screen (Figma style)
+  const ConfirmationScreen = () => (
+    <div className="min-h-screen bg-background flex flex-col">
+      <Header />
+      
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="text-center max-w-md">
+          {/* Success Icon */}
+          <div className="w-24 h-24 rounded-full bg-success/10 border-4 border-success flex items-center justify-center mx-auto mb-6">
+            <Check className="w-12 h-12 text-success" />
+          </div>
+          
+          <h1 className="text-3xl font-bold text-foreground mb-2">Order Confirmed!</h1>
+          <p className="text-muted-foreground mb-8">
+            The laundry order has been successfully created and added to the processing queue.
+          </p>
+
+          {/* Order Details Card */}
+          {completedOrder && (
+            <div className="bg-card border border-border rounded-2xl p-6 mb-8 text-left">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">ORDER ID</p>
+                  <p className="text-2xl font-bold text-foreground">#{completedOrder.code}</p>
+                </div>
+                <span className="px-3 py-1 bg-success/10 text-success text-sm font-semibold rounded-full flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-success" />
+                  IN PROGRESS
+                </span>
+              </div>
+              
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Customer Name</span>
+                  <span className="font-semibold text-foreground">{completedOrder.customerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Service Type</span>
+                  <span className="font-semibold text-foreground">{serviceTypes.find(s => s.id === walkinData.serviceType)?.label}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Estimated Completion</span>
+                  <span className="font-semibold text-foreground">Today, 4:30 PM</span>
+                </div>
+                <div className="flex justify-between pt-3 border-t border-border">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="text-xl font-bold text-primary">₵{completedOrder.totalPrice?.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="space-y-3">
             <Button
-              onClick={handleEnrollNewStaff}
-              disabled={isProcessing || !enrollName}
-              className="w-full bg-accent hover:bg-accent/90"
+              onClick={() => { setMainView('dashboard'); resetWalkin(); }}
+              className="w-full h-14 bg-foreground hover:bg-foreground/90 text-background rounded-xl text-lg font-semibold"
             >
-              <Fingerprint className="w-4 h-4 mr-2" />
-              {isProcessing ? 'Enrolling...' : 'Enroll with Face ID'}
+              <Plus className="w-5 h-5 mr-2" />
+              Start New Order
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => completedOrder && sendWhatsAppReceipt(completedOrder)}
+              className="w-full h-12 rounded-xl"
+            >
+              <Smartphone className="w-4 h-4 mr-2" />
+              Print Receipt
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+
+          <p className="text-xs text-muted-foreground mt-6">
+            ⏱ Screen will reset in 25s
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Orders View
+  const OrdersView = () => (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold text-foreground mb-6">All Orders</h1>
+      <div className="bg-card border border-border rounded-2xl divide-y divide-border">
+        {orders.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground">
+            <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>No orders yet</p>
+          </div>
+        ) : (
+          orders.map(order => (
+            <div key={order.id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+              <div className="flex items-center gap-4">
+                <div className={`w-3 h-3 rounded-full ${ORDER_STAGES.find(s => s.status === order.status)?.color || 'bg-muted'}`} />
+                <div>
+                  <p className="font-semibold text-foreground">{order.code}</p>
+                  <p className="text-sm text-muted-foreground">{order.customerName} • {order.customerPhone}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="font-semibold text-foreground">₵{order.totalPrice?.toFixed(2) || '0.00'}</p>
+                <p className="text-xs text-muted-foreground">{ORDER_STAGES.find(s => s.status === order.status)?.label}</p>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
+  // Main Render Logic
+  if (mainView === 'walkin') {
+    switch (walkinStep) {
+      case 'phone': return <PhoneScreen />;
+      case 'order': return <OrderScreen />;
+      case 'delivery': return <DeliveryScreen />;
+      case 'summary': return <SummaryScreen />;
+      case 'payment': return <PaymentScreen />;
+      case 'confirmation': return <ConfirmationScreen />;
+    }
+  }
+
+  // Dashboard Layout
+  return (
+    <div className="min-h-screen bg-muted/30">
+      <Header />
+      {mainView === 'dashboard' && <DashboardView />}
+      {mainView === 'orders' && <OrdersView />}
+      {mainView === 'customers' && (
+        <div className="p-6">
+          <h1 className="text-2xl font-bold text-foreground mb-6">Customers</h1>
+          <p className="text-muted-foreground">Customer management coming soon...</p>
+        </div>
+      )}
     </div>
   );
 };
