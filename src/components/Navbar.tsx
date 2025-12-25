@@ -22,6 +22,7 @@ export const Navbar = () => {
     { href: '/order', label: 'Place Order' },
     { href: '/track', label: 'Track Order' },
     { href: '/account', label: 'Account' },
+    { href: '/washstation', label: 'WashStation' },
   ];
 
   return (

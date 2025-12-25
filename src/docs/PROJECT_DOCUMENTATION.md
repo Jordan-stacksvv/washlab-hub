@@ -2,7 +2,7 @@
 
 ## Overview
 
-WashLab is a campus laundry management system designed for students. It handles online ordering, walk-in customers, order tracking, staff management, and payment processing.
+WashLab is a campus laundry management system designed for students. It handles online ordering, walk-in customers, order tracking, staff management, payment processing, and WebAuthn-based staff attendance.
 
 ---
 
@@ -93,7 +93,12 @@ WashLab is a campus laundry management system designed for students. It handles 
 #### WashStation Dashboard (`/washstation`)
 **Purpose:** Main operations hub for walk-in orders
 
-**Flow:**
+**Authentication Flow:**
+1. **Branch Code Entry** - Staff enters branch code (e.g., 001, 002, 003)
+2. **WebAuthn Verification** - Face ID / fingerprint verification
+3. **Dashboard Access** - Once authenticated, full access to operations
+
+**Walk-In Order Flow:**
 1. Phone Entry - Customer phone lookup/registration
 2. Order Details - Service type, weight, item count
 3. Delivery Selection - Pickup or delivery
@@ -102,12 +107,16 @@ WashLab is a campus laundry management system designed for students. It handles 
 6. Confirmation - Order created
 
 **Features:**
+- Branch-locked session (no logout required)
 - Dashboard with stats (Orders Today, Walk-ins, Online, Completed, Delivered)
 - New Walk-In Order button
 - Find Customer search
 - Online Orders queue
 - Recent Activity feed
+- **Attendance Button** - Staff check-in/check-out via Face ID
 - Link to Admin Dashboard
+- Dark/Light theme toggle
+- Notifications for new orders
 
 ---
 
@@ -117,6 +126,7 @@ WashLab is a campus laundry management system designed for students. It handles 
 **Features:**
 - PIN backup
 - Attendance logging
+- WebAuthn enrollment
 
 ---
 
@@ -124,23 +134,81 @@ WashLab is a campus laundry management system designed for students. It handles 
 **Purpose:** Business management
 
 **Sections:**
-- Overview with Revenue stats
-- Branch Management
-- Staff Management with attendance
-- Voucher Management
-- Loyalty Program
-- Reports (PDF/Excel export)
-- WhatsApp messaging
+- **Overview** - Revenue stats (Today, Cash, Online, Total)
+- **Branches** - Add/edit branch locations with pricing
+- **Staff** - Add staff, send enrollment links via WhatsApp
+- **Attendance** - View staff check-in/check-out logs
+- **Vouchers** - Create and manage discount codes
+- **Loyalty** - Customer points tracking
+- **Reports** - PDF/Excel export by date
+- **WhatsApp** - Broadcast messaging
 
 ---
 
 ## Pricing
 
-| Service | Price |
-|---------|-------|
-| Wash Only | ₵25 per 5kg load |
-| Wash & Dry | ₵50 per 5kg load |
-| Dry Only | ₵25 per 5kg load |
+| Service | Price per 8kg Load |
+|---------|-------------------|
+| Wash Only | ₵25 |
+| Wash & Dry | ₵50 |
+| Dry Only | ₵25 |
+
+---
+
+## WebAuthn Staff Attendance System
+
+### Overview
+The system uses WebAuthn (Face ID / fingerprint) for staff verification without storing biometric data.
+
+### Key Components
+
+#### BranchLogin Component
+- Displayed on WashStation before authentication
+- Validates branch code
+- Triggers WebAuthn verification
+- Logs first staff check-in
+
+#### AttendanceButton Component
+- Available on WashStation header after login
+- Any staff can check-in/check-out via Face ID
+- Auto-detects if staff is already checked in
+- Records attendance with timestamp
+
+### Data Model
+
+```typescript
+// Staff Enrollment (localStorage for demo)
+interface WebAuthnCredential {
+  id: string;
+  staffName: string;
+  credentialId: string;
+  publicKey: string;
+  createdAt: Date;
+}
+
+// Attendance Record (localStorage for demo)
+interface AttendanceRecord {
+  staffId: string;
+  staffName: string;
+  type: 'check_in' | 'check_out';
+  timestamp: Date;
+  branchCode: string;
+}
+```
+
+### Flow Summary
+
+1. **First Staff of Day:**
+   - Enter Branch Code → Face ID → Check-in → Dashboard
+
+2. **Additional Staff Check-in:**
+   - Tap "Attendance" button → Face ID → Check-in logged
+
+3. **Staff Check-out:**
+   - Same "Attendance" button → Face ID → Check-out logged
+
+4. **Payment Verification (Future):**
+   - Before USSD → Face ID confirms staff identity
 
 ---
 
@@ -176,6 +244,8 @@ src/
 ├── assets/              # Images, logos
 ├── components/
 │   ├── ui/              # shadcn components
+│   ├── AttendanceButton.tsx  # Staff attendance
+│   ├── BranchLogin.tsx       # Branch authentication
 │   ├── Logo.tsx
 │   ├── Navbar.tsx
 │   ├── PhoneSlideshow.tsx
@@ -187,6 +257,7 @@ src/
 │   ├── INTEGRATION_GUIDE.md
 │   └── PROJECT_DOCUMENTATION.md
 ├── hooks/
+│   ├── useWebAuthn.ts   # WebAuthn hook
 │   └── use-toast.ts
 ├── lib/
 │   └── utils.ts
@@ -194,7 +265,7 @@ src/
 │   ├── Index.tsx        # Landing page
 │   ├── OrderPage.tsx    # Place order
 │   ├── TrackPage.tsx    # Track order
-│   ├── WashStation.tsx  # Staff operations (walk-in flow)
+│   ├── WashStation.tsx  # Staff operations (branch login + walk-in flow)
 │   ├── StaffLogin.tsx   # Staff auth
 │   ├── AdminDashboard.tsx
 │   └── CustomerAccount.tsx
@@ -214,7 +285,7 @@ src/
 | `/track` | TrackPage | Track existing order |
 | `/account` | CustomerAccount | Customer dashboard |
 | `/staff` | StaffLogin | Staff authentication |
-| `/washstation` | WashStation | Walk-in order processing |
+| `/washstation` | WashStation | Branch login + Walk-in order processing |
 | `/admin` | AdminDashboard | Business management |
 
 ---
@@ -245,3 +316,24 @@ Orders are managed through `OrderContext` which provides:
 - Revenue calculation functions
 
 Data is persisted to localStorage.
+
+---
+
+## Demo Credentials
+
+| Component | Credential |
+|-----------|------------|
+| Branch Codes | 001, 002, 003 |
+| Admin Password | admin123 |
+| Customer Account | Phone: 0551234567, Password: 1234 |
+
+---
+
+## Future Enhancements
+
+- Backend database integration (Supabase)
+- Real Hubtel payment processing
+- Multi-branch geo-validation
+- WhatsApp Business API integration
+- Supervisor override for attendance
+- QR code fallback for attendance
