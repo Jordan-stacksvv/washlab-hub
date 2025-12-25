@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { Logo } from '@/components/Logo';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
@@ -11,8 +12,15 @@ import {
   SelectTrigger,
   SelectValue 
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { ORDER_STAGES, OrderStatus, ITEM_CATEGORIES } from '@/types';
-import { useOrders, Order } from '@/context/OrderContext';
+import { useOrders, Order, PaymentMethod } from '@/context/OrderContext';
+import { useWebAuthn } from '@/hooks/useWebAuthn';
 import washLabLogo from '@/assets/washlab-logo.png';
 import { 
   Search, 
@@ -39,14 +47,27 @@ import {
   ArrowRight,
   Bell,
   LogIn,
-  LogOut
+  LogOut,
+  Fingerprint,
+  ShieldCheck,
+  AlertCircle,
+  Wallet,
+  Banknote,
+  Smartphone
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-type View = 'dashboard' | 'checkin' | 'walkin' | 'order-detail' | 'pending-list' | 'in-progress-list' | 'ready-list' | 'staff-signin';
+type View = 'dashboard' | 'checkin' | 'walkin' | 'order-detail' | 'pending-list' | 'in-progress-list' | 'ready-list' | 'staff-signin' | 'payment' | 'enroll-staff';
+
+interface SignedInStaff {
+  id: string;
+  name: string;
+  signedInAt: Date;
+}
 
 const WashStation = () => {
   const { orders, addOrder, updateOrder, getPendingOrders, getActiveOrders, getReadyOrders, getCompletedOrders } = useOrders();
+  const { isSupported, isProcessing, enrollStaff, verifyStaff, enrolledStaff, removeEnrollment } = useWebAuthn();
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -56,6 +77,7 @@ const WashStation = () => {
   const [checkInWeight, setCheckInWeight] = useState('');
   const [checkInBagCard, setCheckInBagCard] = useState('');
   const [checkInItems, setCheckInItems] = useState<{ category: string; quantity: number }[]>([]);
+  const [hasWhites, setHasWhites] = useState(false);
   
   // Walk-in state
   const [walkInPhone, setWalkInPhone] = useState('');
@@ -63,11 +85,15 @@ const WashStation = () => {
   const [walkInHall, setWalkInHall] = useState('');
   const [walkInRoom, setWalkInRoom] = useState('');
   
-  // Payment authorization
+  // Payment state
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('hubtel');
   const [isAuthorizingPayment, setIsAuthorizingPayment] = useState(false);
+  const [paymentAuthorizedBy, setPaymentAuthorizedBy] = useState<string | null>(null);
   
   // Staff attendance state
-  const [signedInStaff, setSignedInStaff] = useState<{ id: string; name: string; signedInAt: Date }[]>([]);
+  const [signedInStaff, setSignedInStaff] = useState<SignedInStaff[]>([]);
+  const [enrollName, setEnrollName] = useState('');
+  const [showEnrollDialog, setShowEnrollDialog] = useState(false);
 
   const pendingOrders = getPendingOrders();
   const activeOrders = getActiveOrders();
@@ -112,6 +138,7 @@ const WashStation = () => {
     setCheckInWeight('');
     setCheckInBagCard('');
     setCheckInItems([]);
+    setHasWhites(order.hasWhites || false);
   };
 
   const addCheckInItem = () => {
@@ -135,7 +162,10 @@ const WashStation = () => {
     }
 
     const weight = parseFloat(checkInWeight);
-    const loads = weight <= 9 ? 1 : Math.ceil(weight / 8);
+    // Auto-add extra load for whites if selected
+    const extraLoadsForWhites = hasWhites && selectedOrder?.washSeparately ? 1 : 0;
+    const baseLoads = weight <= 9 ? 1 : Math.ceil(weight / 8);
+    const loads = baseLoads + extraLoadsForWhites;
     const pricePerLoad = 25;
     const totalPrice = loads * pricePerLoad;
 
@@ -147,10 +177,12 @@ const WashStation = () => {
         loads,
         totalPrice,
         items: checkInItems,
+        hasWhites,
+        checkedInBy: signedInStaff[0]?.name || 'Unknown',
       });
     }
 
-    toast.success('Order checked in successfully');
+    toast.success(`Order checked in successfully${extraLoadsForWhites ? ' (+1 load for whites)' : ''}`);
     setCurrentView('dashboard');
     setSelectedOrder(null);
   };
@@ -188,23 +220,65 @@ const WashStation = () => {
   };
 
   const handleUpdateOrderStatus = (orderId: string, newStatus: OrderStatus) => {
-    updateOrder(orderId, { status: newStatus });
+    updateOrder(orderId, { 
+      status: newStatus,
+      processedBy: signedInStaff[0]?.name || 'Unknown',
+    });
     setSelectedOrder(prev => prev?.id === orderId ? { ...prev, status: newStatus } : prev);
     toast.success(`Order updated to ${ORDER_STAGES.find(s => s.status === newStatus)?.label}`);
   };
 
-  const initiatePayment = () => {
+  // WebAuthn payment authorization
+  const initiatePayment = async () => {
     setIsAuthorizingPayment(true);
-    setTimeout(() => {
-      setIsAuthorizingPayment(false);
-      toast.success('Payment initiated! Customer will receive USSD prompt.');
-    }, 2000);
+    
+    // Verify staff with WebAuthn before processing payment
+    const result = await verifyStaff();
+    
+    if (result.success && result.staffName) {
+      setPaymentAuthorizedBy(result.staffName);
+      setCurrentView('payment');
+    } else {
+      toast.error('Payment authorization failed. Please try again.');
+    }
+    
+    setIsAuthorizingPayment(false);
+  };
+
+  const processPayment = (method: PaymentMethod) => {
+    if (!selectedOrder) return;
+
+    if (method === 'hubtel' || method === 'momo') {
+      // Send USSD prompt to customer
+      const phone = selectedOrder.customerPhone;
+      toast.success(`USSD prompt sent to ${phone}`, {
+        description: `Amount: ₵${selectedOrder.totalPrice} via ${method.toUpperCase()}`
+      });
+    }
+
+    updateOrder(selectedOrder.id, {
+      paymentMethod: method,
+      paymentStatus: 'paid',
+      paidAt: new Date(),
+      paidAmount: selectedOrder.totalPrice || 0,
+      processedBy: paymentAuthorizedBy || signedInStaff[0]?.name || 'Unknown',
+    });
+
+    toast.success('Payment recorded successfully!');
+    setCurrentView('order-detail');
+    setSelectedOrder(prev => prev ? { 
+      ...prev, 
+      paymentMethod: method, 
+      paymentStatus: 'paid',
+      paidAt: new Date(),
+      paidAmount: prev.totalPrice || 0,
+    } : null);
   };
 
   const sendWhatsAppReceipt = (order: Order) => {
     const itemsList = order.items.map(i => `• ${i.category} – ${i.quantity}`).join('\n');
     const message = encodeURIComponent(
-      `*WashLab Receipt – ${order.code}*\n*Bag Card: #${order.bagCardNumber}*\n\n*Items:*\n${itemsList}\n\n*Amount Paid:* ₵${order.totalPrice}\n\nThank you!`
+      `*WashLab Receipt – ${order.code}*\n*Bag Tag: #${order.bagCardNumber}*\n\n*Items:*\n${itemsList}\n\n*Amount Paid:* ₵${order.totalPrice}\n*Payment:* ${order.paymentMethod?.toUpperCase()}\n\nThank you for choosing WashLab! 🧺`
     );
     const phone = order.customerPhone.startsWith('0') ? `233${order.customerPhone.slice(1)}` : order.customerPhone;
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
@@ -213,36 +287,92 @@ const WashStation = () => {
 
   const sendWhatsAppReady = (order: Order) => {
     const message = encodeURIComponent(
-      `Your WashLab order (${order.code}) is ready.\n\nReply:\n1 – Pickup\n2 – Delivery`
+      `🧺 *WashLab Order Ready!*\n\nYour order *${order.code}* is ready for pickup!\n\nBag Tag: #${order.bagCardNumber}\n\nReply:\n*1* – I'll pick up at WashLab\n*2* – Please deliver to my room`
     );
     const phone = order.customerPhone.startsWith('0') ? `233${order.customerPhone.slice(1)}` : order.customerPhone;
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
     toast.success('WhatsApp opened');
   };
 
-  // Handle staff sign in
-  const handleStaffSignIn = (name: string) => {
-    const newStaff = { id: `staff-${Date.now()}`, name, signedInAt: new Date() };
+  // Send pickup verification code
+  const sendPickupVerification = (order: Order) => {
+    const verificationCode = Math.floor(1000 + Math.random() * 9000);
+    const message = encodeURIComponent(
+      `🔐 *WashLab Pickup Verification*\n\nOrder: ${order.code}\n\nYour verification code is: *${verificationCode}*\n\nShare this code with the person picking up your laundry.`
+    );
+    const phone = order.customerPhone.startsWith('0') ? `233${order.customerPhone.slice(1)}` : order.customerPhone;
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+    toast.success('Verification code sent via WhatsApp');
+  };
+
+  // Handle staff sign in with WebAuthn
+  const handleStaffSignIn = async () => {
+    if (isSupported) {
+      const result = await verifyStaff();
+      if (result.success && result.staffName && result.staffId) {
+        const newStaff: SignedInStaff = { 
+          id: result.staffId, 
+          name: result.staffName, 
+          signedInAt: new Date() 
+        };
+        setSignedInStaff(prev => [...prev, newStaff]);
+        setCurrentView('dashboard');
+      }
+    } else {
+      toast.error('WebAuthn not supported. Please use manual sign-in.');
+    }
+  };
+
+  const handleManualSignIn = (name: string) => {
+    const newStaff: SignedInStaff = { 
+      id: `staff-${Date.now()}`, 
+      name, 
+      signedInAt: new Date() 
+    };
     setSignedInStaff(prev => [...prev, newStaff]);
-    toast.success(`${name} signed in`);
+    toast.success(`${name} signed in (manual)`);
     setCurrentView('dashboard');
   };
 
-  const handleStaffSignOut = (staffId: string) => {
-    const staff = signedInStaff.find(s => s.id === staffId);
-    setSignedInStaff(prev => prev.filter(s => s.id !== staffId));
-    if (staff) toast.success(`${staff.name} signed out`);
+  const handleStaffSignOut = async (staffId: string) => {
+    if (isSupported) {
+      const result = await verifyStaff(staffId);
+      if (result.success) {
+        const staff = signedInStaff.find(s => s.id === staffId);
+        setSignedInStaff(prev => prev.filter(s => s.id !== staffId));
+        if (staff) toast.success(`${staff.name} signed out`);
+      }
+    } else {
+      const staff = signedInStaff.find(s => s.id === staffId);
+      setSignedInStaff(prev => prev.filter(s => s.id !== staffId));
+      if (staff) toast.success(`${staff.name} signed out`);
+    }
+  };
+
+  const handleEnrollNewStaff = async () => {
+    if (!enrollName.trim()) {
+      toast.error('Please enter staff name');
+      return;
+    }
+    const staffId = `staff-${Date.now()}`;
+    const success = await enrollStaff(enrollName.trim(), staffId);
+    if (success) {
+      setEnrollName('');
+      setShowEnrollDialog(false);
+    }
   };
 
   // Dashboard View - POS Style
   if (currentView === 'dashboard') {
     return (
       <div className="min-h-screen bg-muted/30">
-        {/* Top Bar - Branch, Clock */}
+        {/* Top Bar */}
         <header className="bg-primary text-primary-foreground px-4 sm:px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-4">
-              <img src={washLabLogo} alt="WashLab" className="h-8 sm:h-10 w-auto brightness-0 invert" />
+              <Link to="/">
+                <img src={washLabLogo} alt="WashLab" className="h-8 sm:h-10 w-auto brightness-0 invert" />
+              </Link>
               <div className="h-8 w-px bg-primary-foreground/20 hidden sm:block" />
               <div className="hidden sm:block">
                 <p className="text-primary-foreground/70 text-xs">Branch</p>
@@ -255,7 +385,7 @@ const WashStation = () => {
               {signedInStaff.length > 0 && (
                 <div className="flex items-center gap-2 mr-2">
                   <div className="flex -space-x-2">
-                    {signedInStaff.slice(0, 3).map((staff, i) => (
+                    {signedInStaff.slice(0, 3).map((staff) => (
                       <div key={staff.id} className="w-8 h-8 rounded-full bg-primary-foreground/20 border-2 border-primary flex items-center justify-center text-xs font-bold">
                         {staff.name.charAt(0)}
                       </div>
@@ -273,10 +403,15 @@ const WashStation = () => {
                 onClick={() => setCurrentView('staff-signin')} 
                 className="text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary-foreground/10"
               >
-                <Users className="w-4 h-4 sm:mr-2" />
+                <Fingerprint className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Attendance</span>
               </Button>
               <div className="h-8 w-px bg-primary-foreground/20 hidden sm:block" />
+              <Link to="/">
+                <Button variant="ghost" size="sm" className="text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary-foreground/10">
+                  <Home className="w-4 h-4" />
+                </Button>
+              </Link>
               <div className="text-right hidden sm:block">
                 <p className="text-primary-foreground/70 text-xs">{new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
                 <p className="font-mono font-semibold">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
@@ -303,7 +438,7 @@ const WashStation = () => {
             </Button>
           </div>
 
-          {/* MAIN ACTION BUTTONS - BIG TOUCH BUTTONS */}
+          {/* MAIN ACTION BUTTONS */}
           <section className="mb-8">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Quick Actions</h2>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -356,7 +491,7 @@ const WashStation = () => {
             </div>
           </section>
 
-          {/* Pending Drop-offs - ORDER CARDS */}
+          {/* Pending Drop-offs */}
           {pendingOrders.length > 0 && (
             <section className="mb-8">
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Pending Drop-off</h2>
@@ -395,7 +530,7 @@ const WashStation = () => {
             </section>
           )}
 
-          {/* Active Orders - ORDER CARDS */}
+          {/* Active Orders */}
           <section>
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Active Orders</h2>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -433,8 +568,8 @@ const WashStation = () => {
                     </div>
                     {order.totalPrice && (
                       <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Paid</p>
-                        <p className="font-bold text-primary">₵{order.totalPrice}</p>
+                        <p className="text-xs text-muted-foreground">{order.paymentStatus === 'paid' ? 'Paid' : 'Due'}</p>
+                        <p className={`font-bold ${order.paymentStatus === 'paid' ? 'text-emerald-600' : 'text-primary'}`}>₵{order.totalPrice}</p>
                       </div>
                     )}
                   </div>
@@ -458,7 +593,9 @@ const WashStation = () => {
   // Check-in View
   if (currentView === 'checkin' && selectedOrder) {
     const weight = parseFloat(checkInWeight) || 0;
-    const loads = weight <= 9 ? 1 : Math.ceil(weight / 8);
+    const extraLoadsForWhites = hasWhites ? 1 : 0;
+    const baseLoads = weight <= 9 ? 1 : Math.ceil(weight / 8);
+    const loads = baseLoads + extraLoadsForWhites;
     const totalPrice = loads * 25;
 
     return (
@@ -521,7 +658,7 @@ const WashStation = () => {
                 </div>
               </div>
               <div>
-                <Label className="text-slate-700 mb-2 block">Bag Card #</Label>
+                <Label className="text-slate-700 mb-2 block">Bag Tag #</Label>
                 <div className="relative">
                   <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                   <Input
@@ -535,6 +672,29 @@ const WashStation = () => {
               </div>
             </div>
 
+            {/* Has Whites Toggle */}
+            <div className="mb-6">
+              <button
+                onClick={() => setHasWhites(!hasWhites)}
+                className={`w-full p-4 rounded-xl border-2 transition-all flex items-center justify-between ${
+                  hasWhites ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">👕</span>
+                  <div className="text-left">
+                    <p className="font-medium">Has Whites</p>
+                    <p className="text-sm text-slate-500">Adds +1 load for separate wash</p>
+                  </div>
+                </div>
+                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                  hasWhites ? 'bg-blue-500 border-blue-500' : 'border-slate-300'
+                }`}>
+                  {hasWhites && <Check className="w-4 h-4 text-white" />}
+                </div>
+              </button>
+            </div>
+
             {checkInWeight && (
               <div className="bg-blue-50 rounded-xl p-4 flex items-center justify-between">
                 <div>
@@ -543,7 +703,9 @@ const WashStation = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-blue-600">Loads</p>
-                  <p className="text-2xl font-bold text-blue-700">{loads}</p>
+                  <p className="text-2xl font-bold text-blue-700">
+                    {loads} {hasWhites && <span className="text-sm font-normal">(+1 whites)</span>}
+                  </p>
                 </div>
               </div>
             )}
@@ -601,6 +763,117 @@ const WashStation = () => {
             <Check className="w-5 h-5 mr-2" />
             Complete Check-In
           </Button>
+        </main>
+      </div>
+    );
+  }
+
+  // Payment View
+  if (currentView === 'payment' && selectedOrder) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50/30">
+        <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center h-16 gap-4">
+              <Button variant="ghost" size="sm" onClick={() => setCurrentView('order-detail')} className="text-slate-600">
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                Back
+              </Button>
+              <div className="flex-1 text-center">
+                <h1 className="font-semibold text-slate-900">Payment: {selectedOrder.code}</h1>
+              </div>
+              <div className="w-16" />
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Authorization Badge */}
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
+              <ShieldCheck className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm text-emerald-700">Payment authorized by</p>
+              <p className="font-semibold text-emerald-800">{paymentAuthorizedBy}</p>
+            </div>
+          </div>
+
+          {/* Order Summary */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6 shadow-sm">
+            <h3 className="font-semibold text-slate-900 mb-4">Order Summary</h3>
+            
+            <div className="space-y-3 mb-6">
+              {selectedOrder.items.map((item, i) => (
+                <div key={i} className="flex justify-between text-sm">
+                  <span className="text-slate-600">{item.category}</span>
+                  <span className="font-medium">× {item.quantity}</span>
+                </div>
+              ))}
+              <div className="border-t pt-3 flex justify-between">
+                <span className="text-slate-600">Weight</span>
+                <span className="font-medium">{selectedOrder.weight} kg</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Loads</span>
+                <span className="font-medium">{selectedOrder.loads}</span>
+              </div>
+            </div>
+
+            <div className="bg-purple-50 rounded-xl p-4 text-center">
+              <p className="text-sm text-purple-600 mb-1">Total Amount</p>
+              <p className="text-4xl font-bold text-purple-700">₵{selectedOrder.totalPrice}</p>
+            </div>
+          </div>
+
+          {/* Payment Methods */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <h3 className="font-semibold text-slate-900 mb-4">Select Payment Method</h3>
+            
+            <div className="space-y-3">
+              <button
+                onClick={() => processPayment('hubtel')}
+                className="w-full p-4 rounded-xl border-2 border-purple-200 hover:border-purple-400 bg-purple-50 transition-all flex items-center gap-4"
+              >
+                <div className="w-12 h-12 rounded-xl bg-purple-500 flex items-center justify-center">
+                  <Smartphone className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-left flex-1">
+                  <p className="font-semibold text-slate-900">Hubtel USSD</p>
+                  <p className="text-sm text-slate-500">Send USSD prompt to customer's phone</p>
+                </div>
+                <ArrowRight className="w-5 h-5 text-purple-500" />
+              </button>
+
+              <button
+                onClick={() => processPayment('momo')}
+                className="w-full p-4 rounded-xl border-2 border-amber-200 hover:border-amber-400 bg-amber-50 transition-all flex items-center gap-4"
+              >
+                <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center">
+                  <Wallet className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-left flex-1">
+                  <p className="font-semibold text-slate-900">Mobile Money</p>
+                  <p className="text-sm text-slate-500">MTN MoMo / Vodafone Cash / AirtelTigo Money</p>
+                </div>
+                <ArrowRight className="w-5 h-5 text-amber-500" />
+              </button>
+
+              <button
+                onClick={() => processPayment('cash')}
+                className="w-full p-4 rounded-xl border-2 border-emerald-200 hover:border-emerald-400 bg-emerald-50 transition-all flex items-center gap-4"
+              >
+                <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center">
+                  <Banknote className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-left flex-1">
+                  <p className="font-semibold text-slate-900">Cash</p>
+                  <p className="text-sm text-slate-500">Customer pays cash at counter</p>
+                </div>
+                <ArrowRight className="w-5 h-5 text-emerald-500" />
+              </button>
+            </div>
+          </div>
         </main>
       </div>
     );
@@ -733,7 +1006,7 @@ const WashStation = () => {
               </div>
               {selectedOrder.bagCardNumber && (
                 <div className="px-4 py-2 rounded-xl bg-blue-100">
-                  <p className="text-xs text-blue-600">Bag Card</p>
+                  <p className="text-xs text-blue-600">Bag Tag</p>
                   <p className="text-xl font-bold text-blue-700">#{selectedOrder.bagCardNumber}</p>
                 </div>
               )}
@@ -753,9 +1026,9 @@ const WashStation = () => {
                   <p className="text-2xl font-bold text-slate-900">{selectedOrder.loads}</p>
                   <p className="text-xs text-slate-500">Loads</p>
                 </div>
-                <div className="text-center p-3 bg-emerald-50 rounded-xl">
-                  <p className="text-2xl font-bold text-emerald-600">₵{selectedOrder.totalPrice}</p>
-                  <p className="text-xs text-slate-500">Total</p>
+                <div className={`text-center p-3 rounded-xl ${selectedOrder.paymentStatus === 'paid' ? 'bg-emerald-50' : 'bg-amber-50'}`}>
+                  <p className={`text-2xl font-bold ${selectedOrder.paymentStatus === 'paid' ? 'text-emerald-600' : 'text-amber-600'}`}>₵{selectedOrder.totalPrice}</p>
+                  <p className="text-xs text-slate-500">{selectedOrder.paymentStatus === 'paid' ? 'Paid' : 'Due'}</p>
                 </div>
               </div>
               
@@ -771,20 +1044,32 @@ const WashStation = () => {
                   </div>
                 </div>
               )}
+
+              {selectedOrder.paymentStatus === 'paid' && (
+                <div className="mt-4 p-3 bg-emerald-50 rounded-xl flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                  <div>
+                    <p className="text-sm text-emerald-700">
+                      Paid via {selectedOrder.paymentMethod?.toUpperCase()}
+                      {selectedOrder.processedBy && ` • Processed by ${selectedOrder.processedBy}`}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* Stage Progress */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6 shadow-sm">
             <h3 className="font-semibold text-slate-900 mb-4">Progress</h3>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-6 overflow-x-auto">
               {ORDER_STAGES.filter(s => !['pending_dropoff', 'out_for_delivery', 'completed'].includes(s.status)).map((stage, index) => {
                 const stageIndex = ORDER_STAGES.findIndex(s => s.status === stage.status);
                 const isCompleted = currentStageIndex > stageIndex;
                 const isCurrent = currentStageIndex === stageIndex;
                 
                 return (
-                  <div key={stage.status} className="flex-1 flex flex-col items-center">
+                  <div key={stage.status} className="flex-1 flex flex-col items-center min-w-[60px]">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
                       isCompleted ? 'bg-emerald-500 text-white' :
                       isCurrent ? 'bg-blue-500 text-white' :
@@ -831,26 +1116,26 @@ const WashStation = () => {
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
             <h3 className="font-semibold text-slate-900 mb-4">Actions</h3>
             <div className="grid grid-cols-2 gap-3">
-              {!selectedOrder.totalPrice && (
+              {selectedOrder.paymentStatus !== 'paid' && selectedOrder.totalPrice && (
                 <Button 
                   onClick={initiatePayment}
-                  disabled={isAuthorizingPayment}
+                  disabled={isAuthorizingPayment || isProcessing}
                   className="h-12 rounded-xl bg-purple-500 hover:bg-purple-600 text-white"
                 >
-                  {isAuthorizingPayment ? (
+                  {isAuthorizingPayment || isProcessing ? (
                     <>
-                      <Camera className="w-5 h-5 mr-2 animate-pulse" />
+                      <Fingerprint className="w-5 h-5 mr-2 animate-pulse" />
                       Verifying...
                     </>
                   ) : (
                     <>
-                      <CreditCard className="w-5 h-5 mr-2" />
+                      <Fingerprint className="w-5 h-5 mr-2" />
                       Charge Customer
                     </>
                   )}
                 </Button>
               )}
-              {selectedOrder.totalPrice && (
+              {selectedOrder.paymentStatus === 'paid' && (
                 <Button 
                   onClick={() => sendWhatsAppReceipt(selectedOrder)}
                   variant="outline"
@@ -861,23 +1146,31 @@ const WashStation = () => {
                 </Button>
               )}
               {selectedOrder.status === 'ready' && (
-                <Button 
-                  onClick={() => sendWhatsAppReady(selectedOrder)}
-                  className="h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white"
-                >
-                  <MessageCircle className="w-5 h-5 mr-2" />
-                  Notify Ready
-                </Button>
-              )}
-              {selectedOrder.status === 'ready' && (
-                <Button 
-                  onClick={() => handleUpdateOrderStatus(selectedOrder.id, 'out_for_delivery')}
-                  variant="outline"
-                  className="h-12 rounded-xl"
-                >
-                  <Truck className="w-5 h-5 mr-2" />
-                  Out for Delivery
-                </Button>
+                <>
+                  <Button 
+                    onClick={() => sendWhatsAppReady(selectedOrder)}
+                    className="h-12 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white"
+                  >
+                    <MessageCircle className="w-5 h-5 mr-2" />
+                    Notify Ready
+                  </Button>
+                  <Button 
+                    onClick={() => sendPickupVerification(selectedOrder)}
+                    variant="outline"
+                    className="h-12 rounded-xl"
+                  >
+                    <ShieldCheck className="w-5 h-5 mr-2" />
+                    Send Pickup Code
+                  </Button>
+                  <Button 
+                    onClick={() => handleUpdateOrderStatus(selectedOrder.id, 'out_for_delivery')}
+                    variant="outline"
+                    className="h-12 rounded-xl"
+                  >
+                    <Truck className="w-5 h-5 mr-2" />
+                    Out for Delivery
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -965,8 +1258,9 @@ const WashStation = () => {
               <p className="text-sm text-muted-foreground mb-3">{order.customerName} • {order.customerPhone}</p>
               <div className="flex gap-2">
                 <Button size="sm" onClick={() => sendWhatsAppReady(order)} className="flex-1 bg-emerald-500"><MessageCircle className="w-4 h-4 mr-1" />Notify</Button>
-                <Button size="sm" onClick={() => handleUpdateOrderStatus(order.id, 'completed')} variant="outline" className="flex-1"><Check className="w-4 h-4 mr-1" />Complete</Button>
+                <Button size="sm" onClick={() => sendPickupVerification(order)} variant="outline" className="flex-1"><ShieldCheck className="w-4 h-4 mr-1" />Pickup Code</Button>
               </div>
+              <Button size="sm" onClick={() => handleUpdateOrderStatus(order.id, 'completed')} variant="outline" className="w-full mt-2"><Check className="w-4 h-4 mr-1" />Mark Complete</Button>
             </div>
           ))}
           {readyOrders.length === 0 && <div className="text-center py-12 text-muted-foreground">No ready orders</div>}
@@ -975,7 +1269,7 @@ const WashStation = () => {
     );
   }
 
-  // Staff Sign-in View
+  // Staff Sign-in View with WebAuthn
   if (currentView === 'staff-signin') {
     return (
       <div className="min-h-screen bg-muted/30">
@@ -984,32 +1278,162 @@ const WashStation = () => {
             <Button variant="ghost" size="sm" onClick={() => setCurrentView('dashboard')} className="text-primary-foreground hover:bg-primary-foreground/10">
               <ChevronLeft className="w-4 h-4 mr-1" />Back
             </Button>
-            <h1 className="font-semibold">Staff Attendance</h1>
+            <h1 className="font-semibold flex-1">Staff Attendance</h1>
           </div>
         </header>
         <main className="max-w-md mx-auto p-4">
+          {/* WebAuthn Sign In */}
           <div className="bg-card rounded-2xl border p-6 mb-4">
-            <h2 className="font-semibold mb-4 text-center">Sign In / Sign Out</h2>
-            <p className="text-sm text-muted-foreground text-center mb-6">Use Face ID when integrated, or enter name for demo</p>
+            <div className="text-center mb-6">
+              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Fingerprint className="w-10 h-10 text-primary" />
+              </div>
+              <h2 className="font-semibold text-lg">Biometric Sign In</h2>
+              <p className="text-sm text-muted-foreground">Use Face ID or fingerprint to sign in</p>
+            </div>
+
+            {isSupported ? (
+              <div className="space-y-3">
+                <Button 
+                  onClick={handleStaffSignIn} 
+                  disabled={isProcessing}
+                  className="w-full h-14 text-lg"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Fingerprint className="w-5 h-5 mr-2 animate-pulse" />
+                      Verifying...
+                    </>
+                  ) : (
+                    <>
+                      <LogIn className="w-5 h-5 mr-2" />
+                      Sign In with Biometrics
+                    </>
+                  )}
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowEnrollDialog(true)}
+                  className="w-full"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Enroll New Staff
+                </Button>
+              </div>
+            ) : (
+              <div className="text-center p-4 bg-amber-50 rounded-xl">
+                <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+                <p className="text-amber-700 font-medium">WebAuthn not supported</p>
+                <p className="text-sm text-amber-600">Use manual sign-in below</p>
+              </div>
+            )}
+          </div>
+
+          {/* Manual Fallback */}
+          <div className="bg-card rounded-2xl border p-6 mb-4">
+            <h3 className="font-semibold mb-4">Manual Sign In (Fallback)</h3>
             <div className="space-y-3">
               <Input placeholder="Enter staff name" id="staff-name-input" className="h-12" />
-              <Button onClick={() => { const input = document.getElementById('staff-name-input') as HTMLInputElement; if (input?.value) handleStaffSignIn(input.value); }} className="w-full h-12"><LogIn className="w-5 h-5 mr-2" />Sign In</Button>
+              <Button 
+                onClick={() => { 
+                  const input = document.getElementById('staff-name-input') as HTMLInputElement; 
+                  if (input?.value) handleManualSignIn(input.value); 
+                }} 
+                variant="outline"
+                className="w-full h-12"
+              >
+                <LogIn className="w-5 h-5 mr-2" />
+                Manual Sign In
+              </Button>
             </div>
           </div>
+
+          {/* Currently On Duty */}
           {signedInStaff.length > 0 && (
-            <div className="bg-card rounded-2xl border p-6">
-              <h3 className="font-semibold mb-4">Currently On Duty</h3>
+            <div className="bg-card rounded-2xl border p-6 mb-4">
+              <h3 className="font-semibold mb-4">Currently On Duty ({signedInStaff.length})</h3>
               <div className="space-y-2">
                 {signedInStaff.map(staff => (
                   <div key={staff.id} className="flex items-center justify-between p-3 bg-muted rounded-xl">
-                    <div><p className="font-medium">{staff.name}</p><p className="text-xs text-muted-foreground">Since {staff.signedInAt.toLocaleTimeString()}</p></div>
-                    <Button size="sm" variant="ghost" onClick={() => handleStaffSignOut(staff.id)}><LogOut className="w-4 h-4" /></Button>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary">
+                        {staff.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-medium">{staff.name}</p>
+                        <p className="text-xs text-muted-foreground">Since {staff.signedInAt.toLocaleTimeString()}</p>
+                      </div>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={() => handleStaffSignOut(staff.id)}>
+                      <LogOut className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Enrolled Staff */}
+          {enrolledStaff.length > 0 && (
+            <div className="bg-card rounded-2xl border p-6">
+              <h3 className="font-semibold mb-4">Enrolled Staff ({enrolledStaff.length})</h3>
+              <div className="space-y-2">
+                {enrolledStaff.map(staff => (
+                  <div key={staff.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <Fingerprint className="w-5 h-5 text-primary" />
+                      <span className="font-medium">{staff.staffName}</span>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={() => removeEnrollment(staff.id)} className="text-red-500 hover:text-red-600">
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
                 ))}
               </div>
             </div>
           )}
         </main>
+
+        {/* Enroll Dialog */}
+        <Dialog open={showEnrollDialog} onOpenChange={setShowEnrollDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Enroll New Staff</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div>
+                <Label>Staff Name</Label>
+                <Input
+                  value={enrollName}
+                  onChange={(e) => setEnrollName(e.target.value)}
+                  placeholder="Enter staff name"
+                  className="mt-1"
+                />
+              </div>
+              <Button 
+                onClick={handleEnrollNewStaff}
+                disabled={isProcessing}
+                className="w-full"
+              >
+                {isProcessing ? (
+                  <>
+                    <Fingerprint className="w-5 h-5 mr-2 animate-pulse" />
+                    Enrolling...
+                  </>
+                ) : (
+                  <>
+                    <Fingerprint className="w-5 h-5 mr-2" />
+                    Enroll with Biometrics
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Staff will be prompted to use Face ID or fingerprint
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
