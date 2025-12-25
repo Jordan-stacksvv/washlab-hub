@@ -332,7 +332,8 @@ const Index = () => {
               <Link to="/order" className="hover:text-primary transition-colors">Place Order</Link>
               <Link to="/track" className="hover:text-primary transition-colors">Track Order</Link>
               <Link to="/account" className="hover:text-primary transition-colors">Account</Link>
-              <Link to="/staff" className="hover:text-primary transition-colors">Staff Portal</Link>
+              <Link to="/washstation" className="hover:text-primary transition-colors">WashStation</Link>
+              <Link to="/admin" className="hover:text-primary transition-colors">Admin</Link>
             </nav>
             <p className="text-sm text-muted-foreground">
               © 2025 WashLab
