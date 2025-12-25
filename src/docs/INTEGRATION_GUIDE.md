@@ -1,7 +1,7 @@
-# WashLab Integration Documentation
+# WashLab Integration Guide
 
 ## Overview
-WashLab is a campus laundry management system. This document covers the integrations needed for production deployment.
+WashLab is a campus laundry management system. This document covers the current integrations and future integration options.
 
 ---
 
@@ -26,288 +26,26 @@ WashLab is a campus laundry management system. This document covers the integrat
 | `/order` | Place order (5 steps) | Public |
 | `/track` | Track order by code/phone | Public |
 | `/account` | Customer login/signup | Public |
-| `/staff` | Staff portal (Face ID) | Branch PIN |
-| `/washstation` | Staff dashboard | After Face ID |
+| `/staff` | Staff portal | Branch PIN |
+| `/washstation` | Walk-in order processing | Staff access |
 | `/admin` | Admin dashboard | Password |
 
 ---
 
-## 1. Convex Backend Setup
+## Current State Management
 
-### Installation
-```bash
-npm install convex
-npx convex init
-```
-
-### Schema (convex/schema.ts)
-```typescript
-import { defineSchema, defineTable } from "convex/server";
-import { v } from "convex/values";
-
-export default defineSchema({
-  // Users table (for authentication)
-  users: defineTable({
-    phone: v.string(),
-    name: v.string(),
-    email: v.optional(v.string()),
-    passwordHash: v.string(),
-    role: v.union(v.literal("customer"), v.literal("staff"), v.literal("admin")),
-  }).index("by_phone", ["phone"]),
-
-  // Customer profiles (linked by phone)
-  customerProfiles: defineTable({
-    phone: v.string(),
-    name: v.string(),
-    hall: v.optional(v.string()),
-    room: v.optional(v.string()),
-    loyaltyPoints: v.number(),
-  }).index("by_phone", ["phone"]),
-
-  // Branches
-  branches: defineTable({
-    name: v.string(),
-    location: v.string(),
-    pricePerLoad: v.number(),
-    deliveryFee: v.number(),
-    overflowAllowance: v.number(), // default 1kg
-    isActive: v.boolean(),
-  }),
-
-  // Staff members
-  staff: defineTable({
-    name: v.string(),
-    phone: v.string(),
-    branchId: v.id("branches"),
-    role: v.union(v.literal("receptionist"), v.literal("admin")),
-    faceId: v.optional(v.string()), // FaceIO facial ID
-    isActive: v.boolean(),
-  })
-    .index("by_branch", ["branchId"])
-    .index("by_phone", ["phone"]),
-
-  // Orders
-  orders: defineTable({
-    code: v.string(),
-    branchId: v.id("branches"),
-    customerPhone: v.string(),
-    bagCardNumber: v.optional(v.string()),
-    status: v.string(), // pending_dropoff, checked_in, sorting, washing, drying, folding, ready, out_for_delivery, completed
-    serviceType: v.string(), // wash_and_dry, wash_only, dry_only
-    clothesCount: v.number(),
-    hasWhites: v.boolean(),
-    washWhitesSeparately: v.boolean(),
-    weight: v.optional(v.number()),
-    loads: v.optional(v.number()),
-    totalPrice: v.optional(v.number()),
-    notes: v.optional(v.string()),
-    // Timestamps for each stage
-    checkedInAt: v.optional(v.number()),
-    sortingAt: v.optional(v.number()),
-    washingAt: v.optional(v.number()),
-    dryingAt: v.optional(v.number()),
-    foldingAt: v.optional(v.number()),
-    readyAt: v.optional(v.number()),
-    completedAt: v.optional(v.number()),
-    // Staff who handled each stage
-    checkedInBy: v.optional(v.id("staff")),
-    statusUpdatedBy: v.optional(v.id("staff")),
-  })
-    .index("by_code", ["code"])
-    .index("by_phone", ["customerPhone"])
-    .index("by_branch", ["branchId"])
-    .index("by_status", ["status"]),
-
-  // Order items (for receipt)
-  orderItems: defineTable({
-    orderId: v.id("orders"),
-    category: v.string(),
-    quantity: v.number(),
-  }).index("by_order", ["orderId"]),
-
-  // Payments
-  payments: defineTable({
-    orderId: v.id("orders"),
-    method: v.string(), // ussd, mobile_money, cash
-    amount: v.number(),
-    staffId: v.id("staff"),
-    branchId: v.id("branches"),
-    reference: v.optional(v.string()), // payment reference from gateway
-  }),
-
-  // Attendance logs
-  attendanceLogs: defineTable({
-    staffId: v.id("staff"),
-    branchId: v.id("branches"),
-    action: v.union(v.literal("sign_in"), v.literal("sign_out")),
-  }),
-
-  // Vouchers
-  vouchers: defineTable({
-    code: v.string(),
-    phone: v.optional(v.string()), // if assigned to specific customer
-    branchId: v.optional(v.id("branches")), // if branch-specific
-    discountType: v.string(), // percentage, fixed, free_wash
-    discountValue: v.number(),
-    usageLimit: v.number(),
-    usedCount: v.number(),
-    validFrom: v.number(),
-    validTo: v.number(),
-    isActive: v.boolean(),
-  })
-    .index("by_code", ["code"])
-    .index("by_phone", ["phone"]),
-});
-```
-
-### Environment Variables
-```env
-CONVEX_DEPLOYMENT=your-deployment-id
-VITE_CONVEX_URL=https://your-deployment.convex.cloud
-```
+Orders are currently stored in **localStorage** via `OrderContext`. For production deployment, you'll want to integrate a backend database.
 
 ---
 
-## 2. FaceIO Integration (Face Recognition)
+## WhatsApp Integration (Click-to-Send)
 
-### Get API Credentials
-1. Go to https://faceio.net
-2. Sign up and create an application
-3. Copy your Public ID (starts with "fio")
+Currently implemented using WhatsApp's URL scheme for free click-to-send messages.
 
-### Installation
-Add the FaceIO script to your index.html:
-```html
-<script src="https://cdn.faceio.net/fio.js"></script>
-```
-
-### Setup (src/lib/faceio.ts)
-```typescript
-// FaceIO instance
-let faceio: any = null;
-
-export const initFaceIO = (publicId: string) => {
-  if (typeof window !== 'undefined' && (window as any).faceIO) {
-    faceio = new (window as any).faceIO(publicId);
-  }
-  return faceio;
-};
-
-// Enroll new face (for staff registration)
-export const enrollFace = async (payload: { staffId: string; staffName: string }) => {
-  if (!faceio) throw new Error("FaceIO not initialized");
-  
-  try {
-    const response = await faceio.enroll({
-      locale: "auto",
-      payload: payload,
-      userConsent: true,
-      pictureQuality: 0.8,
-    });
-    
-    return {
-      facialId: response.facialId,
-      timestamp: response.timestamp,
-    };
-  } catch (error: any) {
-    handleFaceIOError(error);
-    throw error;
-  }
-};
-
-// Authenticate face (for sign-in and payment authorization)
-export const authenticateFace = async () => {
-  if (!faceio) throw new Error("FaceIO not initialized");
-  
-  try {
-    const response = await faceio.authenticate({
-      locale: "auto",
-    });
-    
-    return {
-      facialId: response.facialId,
-      payload: response.payload, // Contains staffId, staffName
-    };
-  } catch (error: any) {
-    handleFaceIOError(error);
-    throw error;
-  }
-};
-
-// Error handler
-const handleFaceIOError = (error: any) => {
-  const errorMessages: Record<number, string> = {
-    1: "Permission denied - camera access required",
-    2: "No faces detected in frame",
-    3: "Unrecognized face",
-    4: "Multiple faces detected",
-    5: "Face PAD (anti-spoofing) failed",
-    6: "Face already enrolled",
-    7: "Invalid image input",
-    8: "Minors not allowed",
-    9: "Face mismatch",
-    10: "Network error",
-  };
-  
-  console.error("FaceIO Error:", errorMessages[error.code] || error.message);
-};
-```
-
-### Usage in Component
-```typescript
-import { initFaceIO, authenticateFace, enrollFace } from "@/lib/faceio";
-
-// Initialize on mount
-useEffect(() => {
-  initFaceIO("YOUR_FACEIO_PUBLIC_ID"); // Replace with your Public ID
-}, []);
-
-// Staff sign-in
-const handleSignIn = async () => {
-  try {
-    const { payload } = await authenticateFace();
-    // payload contains staffId and staffName
-    console.log("Signed in:", payload.staffName);
-    // Record attendance in database
-  } catch (error) {
-    console.error("Authentication failed");
-  }
-};
-
-// Payment authorization
-const handlePaymentAuth = async () => {
-  try {
-    const { payload } = await authenticateFace();
-    // payload.staffId links payment to staff
-    return payload.staffId;
-  } catch (error) {
-    throw new Error("Payment authorization failed");
-  }
-};
-
-// New staff enrollment
-const handleEnrollStaff = async (staffId: string, staffName: string) => {
-  try {
-    const { facialId } = await enrollFace({ staffId, staffName });
-    // Save facialId to database
-    return facialId;
-  } catch (error) {
-    console.error("Enrollment failed");
-  }
-};
-```
-
----
-
-## 3. WhatsApp Integration (Click-to-Send)
-
-No API needed. Uses WhatsApp's URL scheme for free click-to-send messages.
-
-### Utility Function (src/lib/whatsapp.ts)
+### Utility Function
 ```typescript
 // Format phone number for WhatsApp (Ghana: +233)
 const formatPhone = (phone: string): string => {
-  // Remove leading 0 and add country code
   if (phone.startsWith("0")) {
     return `233${phone.slice(1)}`;
   }
@@ -318,18 +56,9 @@ const formatPhone = (phone: string): string => {
 export const sendWhatsAppReceipt = (
   phone: string,
   orderCode: string,
-  bagCard: string,
-  items: { category: string; quantity: number }[],
   amount: number
 ) => {
-  const itemsList = items.map(i => `• ${i.category} – ${i.quantity}`).join('\n');
-  
   const message = `*WashLab Receipt – ${orderCode}*
-*Bag Card: #${bagCard}*
-
-*Items:*
-${itemsList}
-
 *Amount Paid:* ₵${amount}
 
 Thank you for choosing WashLab! 🧺`;
@@ -338,194 +67,73 @@ Thank you for choosing WashLab! 🧺`;
   const encodedMessage = encodeURIComponent(message);
   window.open(`https://wa.me/${formattedPhone}?text=${encodedMessage}`, '_blank');
 };
-
-// Send ready notification
-export const sendWhatsAppReady = (phone: string, orderCode: string) => {
-  const message = `Your WashLab order (${orderCode}) is ready.
-
-Reply:
-1 – Pickup
-2 – Delivery`;
-
-  const formattedPhone = formatPhone(phone);
-  const encodedMessage = encodeURIComponent(message);
-  window.open(`https://wa.me/${formattedPhone}?text=${encodedMessage}`, '_blank');
-};
-
-// Send delivery notification
-export const sendWhatsAppDelivery = (phone: string, orderCode: string) => {
-  const message = `Your WashLab order (${orderCode}) is on its way!
-
-Our staff will deliver to your location shortly.`;
-
-  const formattedPhone = formatPhone(phone);
-  const encodedMessage = encodeURIComponent(message);
-  window.open(`https://wa.me/${formattedPhone}?text=${encodedMessage}`, '_blank');
-};
 ```
 
 ---
 
-## 4. Payment Integration (Paystack/Hubtel USSD)
+## Pricing
 
-### Paystack Setup
-```bash
-npm install @paystack/inline-js
-```
-
-### Configuration (src/lib/paystack.ts)
-```typescript
-const PAYSTACK_PUBLIC_KEY = "pk_test_xxxxx"; // Get from Paystack dashboard
-
-export const initializePayment = async ({
-  email,
-  amount,
-  phone,
-  reference,
-  orderId,
-  onSuccess,
-  onClose,
-}: {
-  email: string;
-  amount: number; // in pesewas (amount * 100)
-  phone: string;
-  reference: string;
-  orderId: string;
-  onSuccess: (reference: string) => void;
-  onClose: () => void;
-}) => {
-  const PaystackPop = (await import("@paystack/inline-js")).default;
-  const paystack = new PaystackPop();
-  
-  paystack.newTransaction({
-    key: PAYSTACK_PUBLIC_KEY,
-    email: email || `${phone}@washlab.com`, // Use phone as fallback
-    amount: amount * 100, // Convert to pesewas
-    currency: "GHS",
-    ref: reference,
-    channels: ["mobile_money", "ussd"], // MoMo and USSD only
-    metadata: {
-      phone,
-      orderId,
-    },
-    onSuccess: (transaction) => {
-      onSuccess(transaction.reference);
-    },
-    onCancel: onClose,
-  });
-};
-
-// Generate unique reference
-export const generatePaymentRef = (orderId: string) => {
-  return `WL-${orderId}-${Date.now()}`;
-};
-```
-
-### Get Paystack Credentials
-1. Go to https://paystack.com
-2. Sign up and verify your business
-3. Get API keys from Settings > API Keys & Webhooks
-4. Enable Mobile Money and USSD channels
-
----
-
-## 5. Production Deployment Checklist
-
-### Environment Variables Needed
-```env
-# Convex
-CONVEX_DEPLOYMENT=
-VITE_CONVEX_URL=
-
-# FaceIO
-VITE_FACEIO_PUBLIC_ID=
-
-# Paystack
-VITE_PAYSTACK_PUBLIC_KEY=
-PAYSTACK_SECRET_KEY=
-```
-
-### Security Considerations
-- [ ] Enable row-level security on all database tables
-- [ ] Validate all user inputs server-side
-- [ ] Implement rate limiting on API calls
-- [ ] Use HTTPS only
-- [ ] Sanitize WhatsApp messages
-- [ ] Store only facial IDs, not actual face data
-- [ ] Implement proper error handling
-
-### Before Going Live
-- [ ] Test all payment flows in Paystack sandbox
-- [ ] Verify FaceIO face recognition accuracy
-- [ ] Test WhatsApp messages on actual devices
-- [ ] Set up monitoring and error tracking
-- [ ] Configure branch-specific settings
-- [ ] Train staff on the system
-- [ ] Set up daily backup procedures
-
----
-
-## 6. Quick Reference
-
-### Order Status Flow
-```
-pending_dropoff → checked_in → sorting → washing → drying → folding → ready → [completed OR out_for_delivery → completed]
-```
+| Service | Price |
+|---------|-------|
+| Wash Only | ₵25 per 5kg load |
+| Wash & Dry | ₵50 per 5kg load |
+| Dry Only | ₵25 per 5kg load |
 
 ### Price Calculation
 ```typescript
-const PRICE_PER_LOAD = 25; // GHS
-const KG_PER_LOAD = 8;
-const OVERFLOW_TOLERANCE = 1; // kg (configurable)
+const serviceTypes = [
+  { id: 'wash_only', label: 'Wash Only', price: 25 },
+  { id: 'wash_and_dry', label: 'Wash & Dry', price: 50 },
+  { id: 'dry_only', label: 'Dry Only', price: 25 },
+];
 
-const calculateLoads = (weight: number) => {
-  if (weight <= KG_PER_LOAD + OVERFLOW_TOLERANCE) return 1;
-  return Math.ceil(weight / KG_PER_LOAD);
-};
-
-const calculatePrice = (weight: number, pricePerLoad: number = PRICE_PER_LOAD) => {
-  return calculateLoads(weight) * pricePerLoad;
+const calculatePrice = (weight: number, servicePrice: number) => {
+  // Price per 5kg
+  const loads = Math.ceil(weight / 5);
+  return loads * servicePrice;
 };
 ```
+
+---
+
+## Order Status Flow
+```
+pending_dropoff → checked_in → sorting → washing → drying → folding → ready → completed
+```
+
+---
+
+## Future Integrations (When Backend is Added)
+
+### 1. Database (Lovable Cloud / Supabase)
+- Real-time order sync across devices
+- Persistent storage
+- User authentication
+
+### 2. Payment Gateway (Paystack/Hubtel)
+- Mobile Money payments
+- USSD integration
+- Card payments
+
+### 3. Staff Authentication
+- PIN-based login (current)
+- Optional: Biometric/Face ID
+
+---
+
+## Quick Reference
 
 ### Loyalty Points
 ```typescript
 const POINTS_PER_ORDER = 1;
 const POINTS_FOR_FREE_WASH = 10;
-
-const addLoyaltyPoints = (currentPoints: number) => {
-  return currentPoints + POINTS_PER_ORDER;
-};
-
-const checkFreeWashEligibility = (points: number) => {
-  return points >= POINTS_FOR_FREE_WASH;
-};
-
-const redeemFreeWash = (currentPoints: number) => {
-  if (currentPoints >= POINTS_FOR_FREE_WASH) {
-    return currentPoints - POINTS_FOR_FREE_WASH;
-  }
-  return currentPoints;
-};
 ```
 
-### Item Categories (for receipts)
-```typescript
-const ITEM_CATEGORIES = [
-  'Shirts',
-  'T-Shirts',
-  'Shorts',
-  'Trousers',
-  'Jeans',
-  'Dresses',
-  'Skirts',
-  'Underwear',
-  'Bras',
-  'Socks',
-  'Towels',
-  'Bedsheets',
-  'Jackets',
-  'Hoodies',
-  'Other',
-];
-```
+### Order Types
+- `online` - Placed via website
+- `walkin` - Created at WashStation
+
+### Payment Methods
+- `mobile_money` - MTN/Vodafone Mobile Money
+- `card` - Card payment
+- `cash` - Physical cash

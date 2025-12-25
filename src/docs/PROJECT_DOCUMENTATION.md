@@ -19,7 +19,7 @@ WashLab is a campus laundry management system designed for students. It handles 
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                        ORDER CONTEXT                            │
-│              (Shared State - localStorage/Convex)               │
+│              (Shared State - localStorage)                      │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -45,13 +45,8 @@ WashLab is a campus laundry management system designed for students. It handles 
 - How It Works (3 steps)
 - Why Students Love WashLab benefits
 - Branch locations with status
-- Pricing cards
+- Pricing cards (Wash Only: ₵25, Wash & Dry: ₵50, Dry Only: ₵25)
 - CTA buttons (Start Laundry, Track Order)
-
-**Components:**
-- `PhoneSlideshow` - Animated phone mockup
-- `Navbar` - Navigation
-- `Logo` - Brand logo
 
 ---
 
@@ -68,7 +63,6 @@ WashLab is a campus laundry management system designed for students. It handles 
 **Key Features:**
 - Generates unique order code (WL-XXXX)
 - Stores order in OrderContext
-- No payment at this stage
 
 ---
 
@@ -80,12 +74,11 @@ WashLab is a campus laundry management system designed for students. It handles 
 - Visual progress indicator
 - Status timeline
 - Payment status
-- Pickup/Delivery info
 
 ---
 
 #### Customer Account (`/account`)
-**Purpose:** Loyalty & history (optional)
+**Purpose:** Loyalty & history
 
 **Features:**
 - Order history
@@ -98,34 +91,23 @@ WashLab is a campus laundry management system designed for students. It handles 
 ### 2. STAFF PAGES
 
 #### WashStation Dashboard (`/washstation`)
-**Purpose:** Main operations hub
+**Purpose:** Main operations hub for walk-in orders
 
-**Sections:**
-- **Quick Actions Grid:**
-  - New Walk-in
-  - Check-in Order (with pending count)
-  - In Progress (with active count)
-  - Ready Orders (with ready count)
-
-- **Pending Drop-offs:** Orders waiting for customer arrival
-- **Active Orders:** Orders being processed
-- **Ready Orders:** Completed, awaiting pickup
+**Flow:**
+1. Phone Entry - Customer phone lookup/registration
+2. Order Details - Service type, weight, item count
+3. Delivery Selection - Pickup or delivery
+4. Order Summary - Review before payment
+5. Payment - Mobile Money, Card, or Cash
+6. Confirmation - Order created
 
 **Features:**
-- Real-time order counts
-- Toast notifications for new orders
-- Search by code/phone
-- Staff attendance (Sign In/Out with FaceIO)
-
-**Views:**
-- Dashboard (main)
-- Check-in (weigh, tag, categorize)
-- Walk-in (create new order)
-- Order Detail (full order management)
-- Pending List
-- In Progress List
-- Ready List
-- Staff Sign-in
+- Dashboard with stats (Orders Today, Walk-ins, Online, Completed, Delivered)
+- New Walk-In Order button
+- Find Customer search
+- Online Orders queue
+- Recent Activity feed
+- Link to Admin Dashboard
 
 ---
 
@@ -133,10 +115,8 @@ WashLab is a campus laundry management system designed for students. It handles 
 **Purpose:** Staff authentication & attendance
 
 **Features:**
-- Face ID sign-in/sign-out
 - PIN backup
 - Attendance logging
-- Dashboard lock when no staff signed in
 
 ---
 
@@ -144,100 +124,23 @@ WashLab is a campus laundry management system designed for students. It handles 
 **Purpose:** Business management
 
 **Sections:**
-- Revenue Overview (Cash vs Online)
-- Order Statistics
-- Branch Performance
-- Staff Attendance
-- Reconciliation Reports
+- Overview with Revenue stats
+- Branch Management
+- Staff Management with attendance
 - Voucher Management
+- Loyalty Program
+- Reports (PDF/Excel export)
+- WhatsApp messaging
 
 ---
 
-## Data Flow
+## Pricing
 
-### Order Lifecycle
-
-```
-1. ORDER CREATED
-   └── Online: Customer places order on /order
-   └── Walk-in: Staff creates on WashStation
-
-2. PENDING DROP-OFF
-   └── Customer brings clothes to WashStation
-
-3. CHECK-IN
-   └── Staff weighs clothes
-   └── Assigns bag card number
-   └── Categorizes items
-   └── Calculates price
-
-4. PAYMENT
-   └── FaceIO authorization (staff)
-   └── USSD sent to customer (Hubtel)
-   └── Payment confirmed
-   └── WhatsApp receipt sent
-
-5. PROCESSING
-   └── Sorting → Washing → Drying → Folding
-
-6. READY
-   └── WhatsApp notification sent
-   └── Customer chooses pickup/delivery
-
-7. COMPLETED
-   └── Pickup: Customer collects with bag card
-   └── Delivery: Staff delivers to hall
-```
-
----
-
-## State Management
-
-### OrderContext
-
-**Location:** `src/context/OrderContext.tsx`
-
-**State:**
-```typescript
-interface Order {
-  id: string;
-  code: string;
-  customerPhone: string;
-  customerName: string;
-  hall: string;
-  room: string;
-  status: OrderStatus;
-  serviceType?: string;
-  bagCardNumber: string | null;
-  items: OrderItem[];
-  totalPrice: number | null;
-  weight: number | null;
-  loads: number | null;
-  hasWhites?: boolean;
-  washSeparately?: boolean;
-  notes?: string;
-  createdAt: Date;
-  paymentMethod: PaymentMethod;
-  paymentStatus: 'pending' | 'paid';
-  paidAt?: Date;
-  paidAmount?: number;
-  checkedInBy?: string;
-  processedBy?: string;
-  orderType: 'online' | 'walkin';
-}
-```
-
-**Methods:**
-- `addOrder()` - Create new order
-- `updateOrder()` - Update order fields
-- `getOrderByCode()` - Find by order code
-- `getOrderByPhone()` - Find by phone
-- `getPendingOrders()` - Orders awaiting drop-off
-- `getActiveOrders()` - Orders in process
-- `getReadyOrders()` - Completed orders
-- `getTotalRevenue()` - Sum of all paid amounts
-- `getCashRevenue()` - Cash payments only
-- `getOnlineRevenue()` - Hubtel/MoMo payments
+| Service | Price |
+|---------|-------|
+| Wash Only | ₵25 per 5kg load |
+| Wash & Dry | ₵50 per 5kg load |
+| Dry Only | ₵25 per 5kg load |
 
 ---
 
@@ -260,60 +163,9 @@ type OrderStatus =
 
 ## Payment Methods
 
-```typescript
-type PaymentMethod = 'cash' | 'hubtel' | 'momo' | 'pending';
-```
-
-**Flow:**
-1. Staff authorizes payment with FaceIO
-2. System sends USSD to customer phone (Hubtel)
-3. Customer approves on their phone
-4. Callback confirms payment
-5. Receipt sent via WhatsApp
-
----
-
-## Integrations
-
-### 1. FaceIO (Face Recognition)
-- **Staff Attendance:** Sign-in/Sign-out
-- **Payment Authorization:** Before charging customer
-- See: `src/docs/FACEIO_INTEGRATION.md`
-
-### 2. Hubtel (Payments)
-- USSD prompt for MoMo payments
-- Callback handling for confirmation
-- See: `src/docs/HUBTEL_INTEGRATION.md`
-
-### 3. WhatsApp
-- Order receipt after payment
-- Ready notification
-- Click-to-send (wa.me links)
-- See: `src/docs/WHATSAPP_INTEGRATION.md`
-
-### 4. Convex (Backend)
-- Real-time database
-- Order sync across devices
-- See: `src/docs/CONVEX_INTEGRATION.md`
-
----
-
-## Pricing Logic
-
-```typescript
-const calculatePrice = (weight: number) => {
-  const PRICE_PER_LOAD = 25; // GHS
-  const KG_PER_LOAD = 8;
-  
-  // First 9kg = 1 load
-  const loads = weight <= 9 ? 1 : Math.ceil(weight / KG_PER_LOAD);
-  
-  return {
-    loads,
-    totalPrice: loads * PRICE_PER_LOAD
-  };
-};
-```
+- **Mobile Money (MTN/Vodafone):** USSD prompt sent to customer phone
+- **Card:** Card payment at station
+- **Cash:** Physical payment
 
 ---
 
@@ -332,12 +184,8 @@ src/
 ├── context/
 │   └── OrderContext.tsx # Shared order state
 ├── docs/
-│   ├── CONVEX_INTEGRATION.md
-│   ├── FACEIO_INTEGRATION.md
-│   ├── HUBTEL_INTEGRATION.md
 │   ├── INTEGRATION_GUIDE.md
-│   ├── PROJECT_DOCUMENTATION.md
-│   └── WHATSAPP_INTEGRATION.md
+│   └── PROJECT_DOCUMENTATION.md
 ├── hooks/
 │   └── use-toast.ts
 ├── lib/
@@ -346,7 +194,7 @@ src/
 │   ├── Index.tsx        # Landing page
 │   ├── OrderPage.tsx    # Place order
 │   ├── TrackPage.tsx    # Track order
-│   ├── WashStation.tsx  # Staff operations
+│   ├── WashStation.tsx  # Staff operations (walk-in flow)
 │   ├── StaffLogin.tsx   # Staff auth
 │   ├── AdminDashboard.tsx
 │   └── CustomerAccount.tsx
@@ -357,49 +205,43 @@ src/
 
 ---
 
-## Deployment Checklist
+## Routes
 
-### Environment Variables
-```
-VITE_FACEIO_PUBLIC_ID=xxx
-VITE_HUBTEL_CLIENT_ID=xxx
-VITE_HUBTEL_CLIENT_SECRET=xxx
-VITE_CONVEX_URL=xxx
-```
-
-### Pre-Deploy
-- [ ] Test all order flows end-to-end
-- [ ] Verify FaceIO enrollment for all staff
-- [ ] Test Hubtel payment flow
-- [ ] Confirm WhatsApp links work
-- [ ] Check mobile responsiveness
-- [ ] Validate admin reports
-
-### Post-Deploy
-- [ ] Monitor error logs
-- [ ] Test real payments (small amounts)
-- [ ] Verify notifications arriving
-- [ ] Check attendance logging
+| Path | Page | Description |
+|------|------|-------------|
+| `/` | Index | Landing page |
+| `/order` | OrderPage | Place new order |
+| `/track` | TrackPage | Track existing order |
+| `/account` | CustomerAccount | Customer dashboard |
+| `/staff` | StaffLogin | Staff authentication |
+| `/washstation` | WashStation | Walk-in order processing |
+| `/admin` | AdminDashboard | Business management |
 
 ---
 
-## Common Issues & Solutions
+## Design System
 
-### Orders not showing on WashStation
-- Check OrderContext is wrapping App
-- Verify localStorage has orders
-- Check status filters
+### Colors
+- **Primary:** WashLab Blue (220 65% 44%)
+- **Accent:** WashLab Orange/Yellow (38 90% 55%)
+- **Success:** Green for completed states
+- **Destructive:** Red for errors/alerts
 
-### FaceIO not working
-- Camera permissions required
-- Check Public ID in env
-- Try different browser
+### Fonts
+- **Display:** Outfit
+- **Body:** Plus Jakarta Sans
 
-### Payments failing
-- Verify Hubtel credentials
-- Check callback URL is accessible
-- Customer must have MoMo balance
+---
 
-### WhatsApp not opening
-- Phone number format must be international (233...)
-- URL encoding required for message
+## State Management
+
+Orders are managed through `OrderContext` which provides:
+- `addOrder()` - Create new order
+- `updateOrder()` - Update order fields
+- `getOrderByCode()` - Find by order code
+- `getPendingOrders()` - Orders awaiting drop-off
+- `getActiveOrders()` - Orders in process
+- `getReadyOrders()` - Completed orders
+- Revenue calculation functions
+
+Data is persisted to localStorage.

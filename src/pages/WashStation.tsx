@@ -261,6 +261,10 @@ const WashStation = () => {
       </Link>
       
       <div className="flex items-center gap-4">
+        <Link to="/admin" className="px-3 py-2 rounded-lg hover:bg-muted transition-colors text-sm font-medium text-muted-foreground hover:text-foreground flex items-center gap-2">
+          <Settings className="w-4 h-4" />
+          Admin
+        </Link>
         <button className="p-2 rounded-lg hover:bg-muted transition-colors">
           <Sun className="w-5 h-5 text-muted-foreground" />
         </button>
@@ -1004,7 +1008,7 @@ const WashStation = () => {
                         <p className="font-semibold text-foreground">{service?.label}</p>
                         <p className="text-xs text-muted-foreground">General clothing</p>
                       </div>
-                      <span className="text-sm text-muted-foreground">{walkinData.weight}kg • ₵21.50/lb</span>
+                      <span className="text-sm text-muted-foreground">{walkinData.weight}kg × ₵{serviceTypes.find(s => s.id === walkinData.serviceType)?.price || 50}/5kg</span>
                       <span></span>
                       <span className="font-semibold text-right">₵{subtotal.toFixed(2)}</span>
                     </div>
