@@ -7,6 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { ORDER_STAGES, OrderStatus } from '@/types';
 import { useOrders, Order, PaymentMethod } from '@/context/OrderContext';
 import { useWebAuthn } from '@/hooks/useWebAuthn';
+import { BranchLogin } from '@/components/BranchLogin';
+import { AttendanceButton, getTodayAttendance } from '@/components/AttendanceButton';
 import washLabLogo from '@/assets/washlab-logo.png';
 import stackedClothes from '@/assets/stacked-clothes.jpg';
 import { 
@@ -70,14 +72,18 @@ interface WalkinData {
 }
 
 const serviceTypes = [
-  { id: 'wash_and_dry', label: 'Wash & Dry', price: 25, icon: Wind, tokens: 2, description: 'Complete service including washing, drying, and folding' },
-  { id: 'wash_only', label: 'Wash Only', price: 15, icon: Droplets, tokens: 1, description: 'Professional washing with premium detergents' },
-  { id: 'dry_only', label: 'Dry Only', price: 12, icon: Sun, tokens: 1, description: 'Quick and efficient drying service' },
+  { id: 'wash_and_dry', label: 'Wash & Dry', price: 50, icon: Wind, tokens: 2, description: 'Complete service per 8kg load' },
+  { id: 'wash_only', label: 'Wash Only', price: 25, icon: Droplets, tokens: 1, description: 'Professional washing per 8kg load' },
+  { id: 'dry_only', label: 'Dry Only', price: 25, icon: Sun, tokens: 1, description: 'Quick drying per 8kg load' },
 ];
 
 const WashStation = () => {
   const { orders, addOrder, updateOrder, getPendingOrders, getActiveOrders, getReadyOrders, getCompletedOrders } = useOrders();
   const { isSupported, isProcessing, enrollStaff, verifyStaff, enrolledStaff } = useWebAuthn();
+  
+  // Branch authentication state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentBranch, setCurrentBranch] = useState('');
   
   const [mainView, setMainView] = useState<MainView>('dashboard');
   const [walkinStep, setWalkinStep] = useState<WalkinStep>('phone');
@@ -103,14 +109,24 @@ const WashStation = () => {
   
   // Payment state
   const [paymentMethod, setPaymentMethod] = useState<'mobile_money' | 'card' | 'cash'>('mobile_money');
-  const [signedInStaff, setSignedInStaff] = useState<SignedInStaff[]>([
-    { id: '1', name: 'Alex M.', signedInAt: new Date() }
-  ]);
+  const [signedInStaff, setSignedInStaff] = useState<SignedInStaff[]>([]);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [enrollName, setEnrollName] = useState('');
   const [showEnrollDialog, setShowEnrollDialog] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>('light');
   const [showNotifications, setShowNotifications] = useState(false);
+
+  // Handle branch login success
+  const handleBranchLoginSuccess = (staffId: string, staffName: string, branchCode: string) => {
+    setIsAuthenticated(true);
+    setCurrentBranch(branchCode);
+    setSignedInStaff([{ id: staffId, name: staffName, signedInAt: new Date() }]);
+  };
+
+  // Show branch login if not authenticated
+  if (!isAuthenticated) {
+    return <BranchLogin onSuccess={handleBranchLoginSuccess} />;
+  }
 
   // Toggle dark/light mode
   const toggleTheme = () => {
@@ -164,20 +180,20 @@ const WashStation = () => {
     setWalkinStep('phone');
   };
 
-  // Calculate pricing
+  // Calculate pricing - per 8kg load
   const calculatePrice = () => {
     const service = serviceTypes.find(s => s.id === walkinData.serviceType);
-    const basePrice = (service?.price || 50) * Math.ceil(walkinData.weight / 5);
+    const loads = Math.ceil(walkinData.weight / 8); // 8kg per load
+    const basePrice = (service?.price || 50) * loads;
     const deliveryFee = walkinData.deliveryOption === 'delivery' ? 5 : 0;
     const subtotal = basePrice;
-    const tax = subtotal * 0.08;
-    const serviceFee = 1.50;
     return { 
       subtotal, 
-      tax, 
-      serviceFee,
+      tax: 0,
+      serviceFee: 0,
       deliveryFee,
-      total: subtotal + tax + serviceFee + deliveryFee 
+      loads,
+      total: subtotal + deliveryFee 
     };
   };
 
@@ -272,6 +288,12 @@ const WashStation = () => {
       </Link>
       
       <div className="flex items-center gap-4">
+        {/* Attendance Button */}
+        <AttendanceButton 
+          branchCode={currentBranch}
+          currentStaff={signedInStaff[0]}
+        />
+        
         <Link to="/admin" className="px-3 py-2 rounded-lg hover:bg-muted transition-colors text-sm font-medium text-muted-foreground hover:text-foreground flex items-center gap-2">
           <Settings className="w-4 h-4" />
           Admin
@@ -316,7 +338,7 @@ const WashStation = () => {
         <div className="flex items-center gap-3 pl-4 border-l border-border">
           <div className="text-right">
             <p className="font-semibold text-foreground text-sm">{signedInStaff[0]?.name || 'Staff'}</p>
-            <p className="text-xs text-muted-foreground">Shift Manager</p>
+            <p className="text-xs text-muted-foreground">Branch {currentBranch}</p>
           </div>
           <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
             <User className="w-5 h-5 text-primary-foreground" />
