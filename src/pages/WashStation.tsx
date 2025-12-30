@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ORDER_STAGES, OrderStatus } from '@/types';
 import { useOrders, Order, PaymentMethod } from '@/context/OrderContext';
 import { useWebAuthn } from '@/hooks/useWebAuthn';
+import { PRICING_CONFIG, getServiceById, calculateTotalPrice, calculateLoads } from '@/config/pricing';
 import washLabLogo from '@/assets/washlab-logo.png';
 import stackedClothes from '@/assets/stacked-clothes.jpg';
 import { 
@@ -69,11 +70,11 @@ interface WalkinData {
   deliveryFee: number;
 }
 
-const serviceTypes = [
-  { id: 'wash_and_dry', label: 'Wash & Dry', price: 25, icon: Wind, tokens: 2, description: 'Complete service including washing, drying, and folding' },
-  { id: 'wash_only', label: 'Wash Only', price: 15, icon: Droplets, tokens: 1, description: 'Professional washing with premium detergents' },
-  { id: 'dry_only', label: 'Dry Only', price: 12, icon: Sun, tokens: 1, description: 'Quick and efficient drying service' },
-];
+// Map pricing config services to include icons
+const serviceTypes = PRICING_CONFIG.services.map(service => ({
+  ...service,
+  icon: service.id === 'wash_and_dry' ? Wind : service.id === 'wash_only' ? Droplets : Sun,
+}));
 
 const WashStation = () => {
   const { orders, addOrder, updateOrder, getPendingOrders, getActiveOrders, getReadyOrders, getCompletedOrders } = useOrders();
@@ -164,21 +165,10 @@ const WashStation = () => {
     setWalkinStep('phone');
   };
 
-  // Calculate pricing
+  // Calculate pricing using centralized config
   const calculatePrice = () => {
-    const service = serviceTypes.find(s => s.id === walkinData.serviceType);
-    const basePrice = (service?.price || 50) * Math.ceil(walkinData.weight / 5);
-    const deliveryFee = walkinData.deliveryOption === 'delivery' ? 5 : 0;
-    const subtotal = basePrice;
-    const tax = subtotal * 0.08;
-    const serviceFee = 1.50;
-    return { 
-      subtotal, 
-      tax, 
-      serviceFee,
-      deliveryFee,
-      total: subtotal + tax + serviceFee + deliveryFee 
-    };
+    const includeDelivery = walkinData.deliveryOption === 'delivery';
+    return calculateTotalPrice(walkinData.serviceType, walkinData.weight, includeDelivery);
   };
 
   // Process walk-in order
