@@ -30,10 +30,13 @@ const FaceScan = () => {
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    // Get branch from session
-    const stored = sessionStorage.getItem('washstation_branch');
+    // Get branch from session - try both keys for compatibility
+    const stored = sessionStorage.getItem('washlab_branch') || sessionStorage.getItem('washstation_branch');
     if (stored) {
-      setBranch(JSON.parse(stored));
+      const branchData = JSON.parse(stored);
+      setBranch(branchData);
+      // Ensure consistent key
+      sessionStorage.setItem('washlab_branch', JSON.stringify(branchData));
     } else {
       navigate('/washstation');
     }

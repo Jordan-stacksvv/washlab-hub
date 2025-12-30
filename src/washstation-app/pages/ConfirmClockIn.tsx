@@ -34,7 +34,7 @@ const ConfirmClockIn = () => {
   useEffect(() => {
     // Get pending staff from session (set during face scan)
     const pendingStaff = sessionStorage.getItem('washstation_pending_staff');
-    const storedBranch = sessionStorage.getItem('washstation_branch');
+    const storedBranch = sessionStorage.getItem('washlab_branch');
     
     if (pendingStaff) {
       setStaffData(JSON.parse(pendingStaff));
@@ -56,25 +56,32 @@ const ConfirmClockIn = () => {
     if (!staffData) return;
 
     // Get existing active staff
-    const existingStaff = sessionStorage.getItem('washstation_active_staff');
+    const existingStaff = sessionStorage.getItem('washlab_active_staff');
     const activeStaff = existingStaff ? JSON.parse(existingStaff) : [];
 
     // Add new staff with clock-in time
     const newStaffEntry = {
-      ...staffData,
+      id: staffData.id,
+      name: staffData.name,
       role: staffData.role || 'Attendant',
       clockInTime: new Date().toISOString(),
+      signedInAt: new Date().toISOString(),
       shiftId: `SH-${Math.floor(Math.random() * 90000) + 10000}`,
     };
 
     activeStaff.push(newStaffEntry);
-    sessionStorage.setItem('washstation_active_staff', JSON.stringify(activeStaff));
+    sessionStorage.setItem('washlab_active_staff', JSON.stringify(activeStaff));
+    
+    // Store branch info consistently
+    if (branch) {
+      sessionStorage.setItem('washlab_branch', JSON.stringify(branch));
+    }
     
     // Clear pending staff
     sessionStorage.removeItem('washstation_pending_staff');
     
     // Set as current staff
-    sessionStorage.setItem('washstation_staff', JSON.stringify(newStaffEntry));
+    sessionStorage.setItem('washlab_current_staff', JSON.stringify(newStaffEntry));
 
     // Record attendance log
     const attendanceLog = JSON.parse(localStorage.getItem('washlab_attendance_log') || '[]');
@@ -88,6 +95,9 @@ const ConfirmClockIn = () => {
       shiftId: newStaffEntry.shiftId,
     });
     localStorage.setItem('washlab_attendance_log', JSON.stringify(attendanceLog));
+
+    // Trigger storage event for other components
+    window.dispatchEvent(new Event('storage'));
 
     navigate('/washstation/dashboard');
   };

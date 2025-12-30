@@ -53,6 +53,7 @@ type WalkinStep = 'phone' | 'order' | 'delivery' | 'summary' | 'payment' | 'conf
 interface SignedInStaff {
   id: string;
   name: string;
+  role?: string;
   signedInAt: Date;
 }
 
@@ -104,9 +105,36 @@ const WashStation = () => {
   
   // Payment state
   const [paymentMethod, setPaymentMethod] = useState<'mobile_money' | 'card' | 'cash'>('mobile_money');
-  const [signedInStaff, setSignedInStaff] = useState<SignedInStaff[]>([
-    { id: '1', name: 'Alex M.', signedInAt: new Date() }
-  ]);
+  const [signedInStaff, setSignedInStaff] = useState<SignedInStaff[]>([]);
+  const [branchName, setBranchName] = useState('Academic City');
+
+  // Load active staff from sessionStorage
+  useEffect(() => {
+    const loadActiveStaff = () => {
+      const activeStaffData = sessionStorage.getItem('washlab_active_staff');
+      if (activeStaffData) {
+        const parsed = JSON.parse(activeStaffData);
+        const staffList = Array.isArray(parsed) ? parsed : [parsed];
+        setSignedInStaff(staffList.map((s: any) => ({
+          id: s.id || s.staffId || `staff-${Date.now()}`,
+          name: s.name || s.staffName || 'Staff Member',
+          role: s.role || 'Attendant',
+          signedInAt: new Date(s.clockInTime || s.signedInAt || Date.now())
+        })));
+      }
+      
+      const branchData = sessionStorage.getItem('washlab_branch');
+      if (branchData) {
+        const branch = JSON.parse(branchData);
+        setBranchName(branch.name || 'Academic City');
+      }
+    };
+    
+    loadActiveStaff();
+    // Listen for storage changes
+    window.addEventListener('storage', loadActiveStaff);
+    return () => window.removeEventListener('storage', loadActiveStaff);
+  }, []);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [enrollName, setEnrollName] = useState('');
   const [showEnrollDialog, setShowEnrollDialog] = useState(false);
@@ -257,13 +285,21 @@ const WashStation = () => {
   // Header Component
   const Header = () => (
     <header className="bg-background border-b border-border px-6 py-4 flex items-center justify-between">
-      <Link to="/washstation" className="flex items-center gap-2">
-        <img src={washLabLogo} alt="WashLab" className="h-8 w-auto" />
-      </Link>
+      <div className="flex items-center gap-4">
+        <Link to="/washstation" className="flex items-center gap-2">
+          <img src={washLabLogo} alt="WashLab" className="h-8 w-auto" />
+        </Link>
+        <div className="h-6 w-px bg-border" />
+        <span className="text-sm font-medium text-muted-foreground">{branchName}</span>
+      </div>
       
       <div className="flex items-center gap-4">
-        <Link to="/washstation/scan" className="px-3 py-2 rounded-lg hover:bg-muted transition-colors text-sm font-medium text-muted-foreground hover:text-foreground flex items-center gap-2">
-          <Settings className="w-4 h-4" />
+        {/* Attendance Button - only show if more staff can clock in */}
+        <Link 
+          to="/washstation/scan" 
+          className="px-3 py-2 rounded-lg hover:bg-muted transition-colors text-sm font-medium text-muted-foreground hover:text-foreground flex items-center gap-2"
+        >
+          <Users className="w-4 h-4" />
           Attendance
         </Link>
         
@@ -302,15 +338,46 @@ const WashStation = () => {
             </span>
           )}
         </button>
+
+        {/* Settings */}
+        <button 
+          onClick={() => setMainView('settings')}
+          className="p-2 rounded-lg hover:bg-muted transition-colors"
+        >
+          <Settings className="w-5 h-5 text-muted-foreground" />
+        </button>
         
-        <div className="flex items-center gap-3 pl-4 border-l border-border">
-          <div className="text-right">
-            <p className="font-semibold text-foreground text-sm">{signedInStaff[0]?.name || 'Staff'}</p>
-            <p className="text-xs text-muted-foreground">Shift Manager</p>
-          </div>
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-            <User className="w-5 h-5 text-primary-foreground" />
-          </div>
+        {/* Attendant Bubbles */}
+        <div className="flex items-center gap-2 pl-4 border-l border-border">
+          {signedInStaff.length > 0 ? (
+            signedInStaff.map((staff) => (
+              <Link 
+                key={staff.id}
+                to={`/washstation/shift/${staff.id}`}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:bg-muted transition-colors group"
+              >
+                <div className="text-right">
+                  <p className="font-medium text-foreground text-sm group-hover:text-primary transition-colors">
+                    {staff.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{staff.role || 'Attendant'}</p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-primary/10 border-2 border-primary flex items-center justify-center">
+                  <User className="w-5 h-5 text-primary" />
+                </div>
+              </Link>
+            ))
+          ) : (
+            <Link 
+              to="/washstation/scan"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-muted-foreground/30 hover:bg-muted transition-colors"
+            >
+              <p className="text-sm text-muted-foreground">No staff signed in</p>
+              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                <User className="w-5 h-5 text-muted-foreground" />
+              </div>
+            </Link>
+          )}
         </div>
       </div>
     </header>
@@ -321,7 +388,7 @@ const WashStation = () => {
     <div className="p-6 space-y-6">
       {/* Welcome Section with Blue Gradient - matches logo */}
       <div className="bg-gradient-to-r from-primary via-primary to-wash-blue-light rounded-2xl p-6 text-primary-foreground">
-        <h1 className="text-2xl font-bold mb-1">{getGreeting()}, {signedInStaff[0]?.name?.split(' ')[0] || 'Staff'}</h1>
+        <h1 className="text-2xl font-bold mb-1">{getGreeting()}, {branchName}</h1>
         <div className="flex items-center gap-2 text-sm opacity-80">
           <Clock className="w-4 h-4" />
           <span>{formatTime()} | {formatDate()}</span>

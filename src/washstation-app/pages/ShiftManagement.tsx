@@ -62,12 +62,13 @@ const ShiftManagement = () => {
   });
 
   useEffect(() => {
-    const activeStaffData = sessionStorage.getItem('washstation_active_staff');
-    const storedBranch = sessionStorage.getItem('washstation_branch');
+    const activeStaffData = sessionStorage.getItem('washlab_active_staff');
+    const storedBranch = sessionStorage.getItem('washlab_branch');
     
     if (activeStaffData) {
       const activeStaff: ActiveStaff[] = JSON.parse(activeStaffData);
-      const staff = activeStaff.find(s => s.shiftId === shiftId);
+      // Match by shiftId or by id (since dashboard links by staff.id)
+      const staff = activeStaff.find(s => s.shiftId === shiftId || s.id === shiftId);
       if (staff) {
         setStaffData(staff);
       } else {
@@ -100,11 +101,11 @@ const ShiftManagement = () => {
     if (!staffData) return;
 
     // Remove from active staff
-    const activeStaffData = sessionStorage.getItem('washstation_active_staff');
+    const activeStaffData = sessionStorage.getItem('washlab_active_staff');
     if (activeStaffData) {
       const activeStaff: ActiveStaff[] = JSON.parse(activeStaffData);
-      const updatedStaff = activeStaff.filter(s => s.shiftId !== shiftId);
-      sessionStorage.setItem('washstation_active_staff', JSON.stringify(updatedStaff));
+      const updatedStaff = activeStaff.filter(s => s.id !== staffData.id);
+      sessionStorage.setItem('washlab_active_staff', JSON.stringify(updatedStaff));
     }
 
     // Record clock out in attendance log
@@ -122,6 +123,9 @@ const ShiftManagement = () => {
     });
     localStorage.setItem('washlab_attendance_log', JSON.stringify(attendanceLog));
 
+    // Trigger storage event for dashboard to update
+    window.dispatchEvent(new Event('storage'));
+
     toast.success(`${staffData.name} clocked out successfully`);
     navigate('/washstation/dashboard');
   };
@@ -129,10 +133,10 @@ const ShiftManagement = () => {
   const handleBreakToggle = () => {
     if (!staffData) return;
 
-    const activeStaffData = sessionStorage.getItem('washstation_active_staff');
+    const activeStaffData = sessionStorage.getItem('washlab_active_staff');
     if (activeStaffData) {
       const activeStaff: ActiveStaff[] = JSON.parse(activeStaffData);
-      const staffIndex = activeStaff.findIndex(s => s.shiftId === shiftId);
+      const staffIndex = activeStaff.findIndex(s => s.id === staffData.id);
       
       if (staffIndex !== -1) {
         if (staffData.onBreak) {
@@ -153,8 +157,11 @@ const ShiftManagement = () => {
           toast.success('Break started');
         }
         
-        sessionStorage.setItem('washstation_active_staff', JSON.stringify(activeStaff));
+        sessionStorage.setItem('washlab_active_staff', JSON.stringify(activeStaff));
         setStaffData(activeStaff[staffIndex]);
+        
+        // Trigger storage event for dashboard to update
+        window.dispatchEvent(new Event('storage'));
       }
     }
   };
