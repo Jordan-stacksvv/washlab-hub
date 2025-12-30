@@ -15,6 +15,8 @@ import Account from "@/public-app/pages/Account";
 // WashStation App Pages
 import BranchEntry from "@/washstation-app/pages/BranchEntry";
 import FaceScan from "@/washstation-app/pages/FaceScan";
+import ConfirmClockIn from "@/washstation-app/pages/ConfirmClockIn";
+import ShiftManagement from "@/washstation-app/pages/ShiftManagement";
 import WashStationDashboard from "@/washstation-app/pages/Dashboard";
 
 // Admin App Pages
@@ -61,6 +63,8 @@ const App = () => (
             {/* WASHSTATION APP - app.washlab.com (tablet only) */}
             <Route path="/washstation" element={<BranchEntry />} />
             <Route path="/washstation/scan" element={<FaceScan />} />
+            <Route path="/washstation/confirm-clock-in" element={<ConfirmClockIn />} />
+            <Route path="/washstation/shift/:shiftId" element={<ShiftManagement />} />
             <Route path="/washstation/dashboard" element={<WashStationDashboard />} />
             
             {/* ADMIN APP - admin.washlab.com */}
