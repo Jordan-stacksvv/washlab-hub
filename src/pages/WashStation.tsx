@@ -257,7 +257,7 @@ const WashStation = () => {
   // Header Component
   const Header = () => (
     <header className="bg-background border-b border-border px-6 py-4 flex items-center justify-between">
-      <Link to="/" className="flex items-center gap-2">
+      <Link to="/washstation" className="flex items-center gap-2">
         <img src={washLabLogo} alt="WashLab" className="h-8 w-auto" />
       </Link>
       
