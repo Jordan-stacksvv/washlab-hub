@@ -136,11 +136,21 @@ WashLab is a campus laundry management system designed for students. It handles 
 
 ## Pricing
 
+All pricing is centralized in `src/config/pricing.ts`. This ensures consistency across all pages (Index, OrderPage, WashStation).
+
 | Service | Price |
 |---------|-------|
-| Wash Only | ₵25 per 5kg load |
-| Wash & Dry | ₵50 per 5kg load |
-| Dry Only | ₵25 per 5kg load |
+| Wash Only | ₵25 per 8kg load |
+| Wash & Dry | ₵50 per 8kg load |
+| Dry Only | ₵25 per 8kg load |
+
+**Pricing Configuration:**
+- 1 load = 8kg
+- Overflow allowed: +2kg (9-10kg = 1 load)
+- Delivery fee: ₵5
+- Tax rate: 8%
+- Service fee: ₵1.50
+- Loyalty: 10 washes = 1 free wash
 
 ---
 
@@ -181,6 +191,8 @@ src/
 │   ├── PhoneSlideshow.tsx
 │   ├── StatusBadge.tsx
 │   └── ...
+├── config/
+│   └── pricing.ts       # Centralized pricing config
 ├── context/
 │   └── OrderContext.tsx # Shared order state
 ├── docs/

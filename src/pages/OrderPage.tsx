@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { StepIndicator } from '@/components/StepIndicator';
 import { ServiceCard } from '@/components/ServiceCard';
@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { ServiceType } from '@/types';
 import { useOrders } from '@/context/OrderContext';
+import { PRICING_CONFIG, getServiceById, calculateLoads } from '@/config/pricing';
 import { 
   Droplets, 
   Wind, 
@@ -31,11 +32,12 @@ const generateOrderCode = () => {
 
 const OrderPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { addOrder } = useOrders();
   const [currentStep, setCurrentStep] = useState(0);
   const [copied, setCopied] = useState(false);
   
-  // Form state
+  // Form state - initialize serviceType from URL if provided
   const [serviceType, setServiceType] = useState<ServiceType | null>(null);
   const [clothesCount, setClothesCount] = useState<number>(0);
   const [hasWhites, setHasWhites] = useState<boolean | null>(null);
@@ -50,9 +52,19 @@ const OrderPage = () => {
   });
   const [orderCode, setOrderCode] = useState<string | null>(null);
 
-  const pricePerLoad = 25; // GHS
+  // Check URL params for pre-selected service
+  useEffect(() => {
+    const serviceFromUrl = searchParams.get('service');
+    if (serviceFromUrl && ['wash_only', 'wash_and_dry', 'dry_only'].includes(serviceFromUrl)) {
+      setServiceType(serviceFromUrl as ServiceType);
+    }
+  }, [searchParams]);
+
+  // Calculate pricing using centralized config
+  const selectedService = serviceType ? getServiceById(serviceType) : null;
+  const pricePerLoad = selectedService?.price || PRICING_CONFIG.services[1].price; // Default to wash_and_dry
   const estimatedWeight = clothesCount * 0.3; // rough estimate
-  const estimatedLoads = Math.ceil(estimatedWeight / 8) || 1;
+  const estimatedLoads = calculateLoads(estimatedWeight) || 1;
   const estimatedPrice = estimatedLoads * pricePerLoad;
 
   const canProceed = () => {
@@ -198,30 +210,17 @@ const OrderPage = () => {
             <div className="animate-fade-in">
               <h2 className="text-xl font-display font-semibold mb-6">Select Your Service</h2>
               <div className="grid md:grid-cols-3 gap-4">
-                <ServiceCard
-                  icon={Sparkles}
-                  title="Wash & Dry"
-                  description="Complete service including washing, drying, and folding"
-                  isSelected={serviceType === 'wash_and_dry'}
-                  onClick={() => setServiceType('wash_and_dry')}
-                  price="₵25/load"
-                />
-                <ServiceCard
-                  icon={Droplets}
-                  title="Wash Only"
-                  description="Professional washing with premium detergents"
-                  isSelected={serviceType === 'wash_only'}
-                  onClick={() => setServiceType('wash_only')}
-                  price="₵15/load"
-                />
-                <ServiceCard
-                  icon={Wind}
-                  title="Dry Only"
-                  description="Quick and efficient drying service"
-                  isSelected={serviceType === 'dry_only'}
-                  onClick={() => setServiceType('dry_only')}
-                  price="₵12/load"
-                />
+                {PRICING_CONFIG.services.map(service => (
+                  <ServiceCard
+                    key={service.id}
+                    icon={service.id === 'wash_and_dry' ? Sparkles : service.id === 'wash_only' ? Droplets : Wind}
+                    title={service.label}
+                    description={service.description}
+                    isSelected={serviceType === service.id}
+                    onClick={() => setServiceType(service.id as ServiceType)}
+                    price={`₵${service.price}${service.unit}`}
+                  />
+                ))}
               </div>
             </div>
           )}

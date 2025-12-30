@@ -3,6 +3,7 @@ import { Logo } from '@/components/Logo';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { PhoneSlideshow } from '@/components/PhoneSlideshow';
+import { PRICING_CONFIG } from '@/config/pricing';
 import heroImage1 from '@/assets/laundry-hero-1.jpg';
 import heroImage2 from '@/assets/laundry-hero-2.jpg';
 import stackedClothes from '@/assets/stacked-clothes.jpg';
@@ -198,17 +199,13 @@ const Index = () => {
             <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">
               Simple Pricing
             </h2>
-            <p className="text-muted-foreground">1 load = 8kg • Final price after weighing</p>
+            <p className="text-muted-foreground">1 load = {PRICING_CONFIG.KG_PER_LOAD}kg • Final price after weighing</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            {[
-              { title: 'Wash Only', price: '₵25', unit: '/load', features: ['Quality detergent', 'Color separation', 'Gentle care'] },
-              { title: 'Wash & Dry', price: '₵50', unit: '/load', featured: true, features: ['Everything in Wash', 'Tumble drying', 'Neatly folded'] },
-              { title: 'Dry Only', price: '₵25', unit: '/load', features: ['Quick dry', 'All fabrics', 'Ready to wear'] },
-            ].map((service) => (
+            {PRICING_CONFIG.services.map((service) => (
               <div
-                key={service.title}
+                key={service.id}
                 className={`relative p-8 rounded-3xl transition-all ${
                   service.featured 
                     ? 'bg-primary text-primary-foreground shadow-xl shadow-primary/20 scale-105' 
@@ -220,9 +217,9 @@ const Index = () => {
                     Most Popular
                   </div>
                 )}
-                <h3 className="font-display font-semibold text-xl mb-2">{service.title}</h3>
+                <h3 className="font-display font-semibold text-xl mb-2">{service.label}</h3>
                 <div className={`text-4xl font-display font-bold mb-6 ${service.featured ? '' : 'text-primary'}`}>
-                  {service.price}<span className={`text-lg font-normal ${service.featured ? 'opacity-70' : 'text-muted-foreground'}`}>{service.unit}</span>
+                  ₵{service.price}<span className={`text-lg font-normal ${service.featured ? 'opacity-70' : 'text-muted-foreground'}`}>{service.unit}</span>
                 </div>
                 <ul className="space-y-3">
                   {service.features.map((feature) => (
@@ -232,7 +229,7 @@ const Index = () => {
                     </li>
                   ))}
                 </ul>
-                <Link to="/order" className="block mt-8">
+                <Link to={`/order?service=${service.id}`} className="block mt-8">
                   <Button 
                     className={`w-full rounded-full h-12 font-semibold ${
                       service.featured 
@@ -250,7 +247,7 @@ const Index = () => {
           <div className="text-center mt-10">
             <p className="text-primary font-semibold flex items-center justify-center gap-2">
               <Star className="w-5 h-5 fill-primary" />
-              10 washes = 1 free wash!
+              {PRICING_CONFIG.loyalty.washesForFreeWash} washes = 1 free wash!
             </p>
           </div>
         </div>
