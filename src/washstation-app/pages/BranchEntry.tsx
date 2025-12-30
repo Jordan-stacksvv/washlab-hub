@@ -38,8 +38,8 @@ const BranchEntry = () => {
       return;
     }
     
-    // Store branch in session for later
-    sessionStorage.setItem('washstation_branch', JSON.stringify(selectedBranch));
+    // Store branch in session with consistent key
+    sessionStorage.setItem('washlab_branch', JSON.stringify(selectedBranch));
     navigate('/washstation/scan');
   };
 
