@@ -262,9 +262,9 @@ const WashStation = () => {
       </Link>
       
       <div className="flex items-center gap-4">
-        <Link to="/admin" className="px-3 py-2 rounded-lg hover:bg-muted transition-colors text-sm font-medium text-muted-foreground hover:text-foreground flex items-center gap-2">
+        <Link to="/washstation/scan" className="px-3 py-2 rounded-lg hover:bg-muted transition-colors text-sm font-medium text-muted-foreground hover:text-foreground flex items-center gap-2">
           <Settings className="w-4 h-4" />
-          Admin
+          Attendance
         </Link>
         
         {/* Theme Toggle Button */}

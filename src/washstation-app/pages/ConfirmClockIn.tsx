@@ -1,0 +1,202 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import washLabLogo from '@/assets/washlab-logo.png';
+import { CheckCircle, X, User, Calendar, Clock, Building2 } from 'lucide-react';
+import { format } from 'date-fns';
+
+interface StaffData {
+  id: string;
+  name: string;
+  role?: string;
+}
+
+interface Branch {
+  id: string;
+  name: string;
+  code: string;
+}
+
+/**
+ * Confirm Clock In Page
+ * 
+ * Confirmation gate before entering dashboard
+ * - Displays staff info, branch, time
+ * - Must click Confirm to proceed
+ * - Matches "Confirm Clock Out" UI style exactly
+ */
+const ConfirmClockIn = () => {
+  const navigate = useNavigate();
+  const [staffData, setStaffData] = useState<StaffData | null>(null);
+  const [branch, setBranch] = useState<Branch | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    // Get pending staff from session (set during face scan)
+    const pendingStaff = sessionStorage.getItem('washstation_pending_staff');
+    const storedBranch = sessionStorage.getItem('washstation_branch');
+    
+    if (pendingStaff) {
+      setStaffData(JSON.parse(pendingStaff));
+    } else {
+      navigate('/washstation/scan');
+      return;
+    }
+    
+    if (storedBranch) {
+      setBranch(JSON.parse(storedBranch));
+    }
+
+    // Update time every second
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, [navigate]);
+
+  const handleConfirm = () => {
+    if (!staffData) return;
+
+    // Get existing active staff
+    const existingStaff = sessionStorage.getItem('washstation_active_staff');
+    const activeStaff = existingStaff ? JSON.parse(existingStaff) : [];
+
+    // Add new staff with clock-in time
+    const newStaffEntry = {
+      ...staffData,
+      role: staffData.role || 'Attendant',
+      clockInTime: new Date().toISOString(),
+      shiftId: `SH-${Math.floor(Math.random() * 90000) + 10000}`,
+    };
+
+    activeStaff.push(newStaffEntry);
+    sessionStorage.setItem('washstation_active_staff', JSON.stringify(activeStaff));
+    
+    // Clear pending staff
+    sessionStorage.removeItem('washstation_pending_staff');
+    
+    // Set as current staff
+    sessionStorage.setItem('washstation_staff', JSON.stringify(newStaffEntry));
+
+    // Record attendance log
+    const attendanceLog = JSON.parse(localStorage.getItem('washlab_attendance_log') || '[]');
+    attendanceLog.push({
+      staffId: staffData.id,
+      staffName: staffData.name,
+      branchId: branch?.id,
+      branchName: branch?.name,
+      action: 'clock_in',
+      timestamp: new Date().toISOString(),
+      shiftId: newStaffEntry.shiftId,
+    });
+    localStorage.setItem('washlab_attendance_log', JSON.stringify(attendanceLog));
+
+    navigate('/washstation/dashboard');
+  };
+
+  const handleCancel = () => {
+    sessionStorage.removeItem('washstation_pending_staff');
+    navigate('/washstation/scan');
+  };
+
+  if (!staffData) return null;
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Header */}
+      <header className="p-6 border-b border-border flex items-center justify-between">
+        <img src={washLabLogo} alt="WashLab" className="h-8 w-auto" />
+        <span className="text-xs bg-muted text-muted-foreground px-3 py-1 rounded-full">
+          ⚠️ Preview Mode – Data stored locally
+        </span>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 flex items-center justify-center p-6">
+        <div className="w-full max-w-lg">
+          {/* Title */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-foreground">Confirm Clock In</h1>
+            <p className="text-muted-foreground mt-2">
+              Review your details below before starting your session.
+            </p>
+          </div>
+
+          {/* System Status */}
+          <div className="flex justify-end mb-6">
+            <span className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-full text-sm font-medium border border-emerald-200">
+              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+              SYSTEM ONLINE
+            </span>
+          </div>
+
+          {/* Staff Card */}
+          <div className="bg-card border border-border rounded-2xl p-6 mb-6">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <User className="w-8 h-8 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-foreground">{staffData.name}</h2>
+                <p className="text-primary font-medium">{staffData.role || 'Attendant'}</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                  <span className="text-primary">#</span> Shift ID: Pending
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>DATE</span>
+                </div>
+                <p className="font-semibold text-foreground">{format(currentTime, 'MMM dd, yyyy')}</p>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2 mb-1">
+                  <Building2 className="w-4 h-4" />
+                  <span>BRANCH</span>
+                </div>
+                <p className="font-semibold text-foreground">{branch?.name || 'Academic City'}</p>
+              </div>
+            </div>
+
+            {/* Time Cards */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-muted/50 rounded-xl p-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                  <Clock className="w-4 h-4" />
+                  <span>CLOCK IN</span>
+                </div>
+                <p className="text-3xl font-bold text-foreground">
+                  {format(currentTime, 'hh:mm')}
+                  <span className="text-lg ml-1">{format(currentTime, 'a')}</span>
+                </p>
+              </div>
+              <div className="bg-primary/10 rounded-xl p-4 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-sm text-primary font-medium mb-1">READY TO START</p>
+                  <CheckCircle className="w-8 h-8 text-primary mx-auto" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-4">
+            <Button
+              variant="outline"
+              onClick={handleCancel}
+              className="flex-1 h-14 rounded-xl text-base"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirm}
+              className="flex-[2] h-14 rounded-xl text-base gap-2 bg-primary hover:bg-primary/90"
+            >
+              <CheckCircle className="w-5 h-5" />
+              Confirm Clock In
+            </Button>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default ConfirmClockIn;

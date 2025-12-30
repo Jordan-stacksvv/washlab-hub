@@ -7,11 +7,9 @@ import washLabLogo from '@/assets/washlab-logo.png';
 import { Building2, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Mock branches for demo
+// Default branch - Academic City
 const BRANCHES = [
-  { id: 'pentagon', name: 'Pentagon Hall', code: 'PNT' },
-  { id: 'brunei', name: 'Brunei Hostel', code: 'BRN' },
-  { id: 'unity', name: 'Unity Hall', code: 'UNT' },
+  { id: 'academic-city', name: 'Academic City', code: 'ACD' },
 ];
 
 /**
@@ -73,7 +71,7 @@ const BranchEntry = () => {
                 <Input
                   value={branchCode}
                   onChange={(e) => handleCodeChange(e.target.value)}
-                  placeholder="e.g., PNT"
+                  placeholder="e.g., ACD"
                   className="mt-2 text-center text-2xl font-bold tracking-widest h-14"
                   maxLength={3}
                 />
@@ -98,7 +96,10 @@ const BranchEntry = () => {
 
             <div className="mt-6 pt-6 border-t border-border">
               <p className="text-xs text-center text-muted-foreground">
-                Available codes: PNT, BRN, UNT
+                Available codes: ACD (Academic City)
+              </p>
+              <p className="text-xs text-center text-amber-600 mt-2">
+                ⚠️ Preview Mode – Data stored locally
               </p>
             </div>
           </div>

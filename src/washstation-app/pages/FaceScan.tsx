@@ -60,25 +60,16 @@ const FaceScan = () => {
       setStaffName(result.staffName);
       setStatus('success');
       
-      // Store staff info for dashboard
-      sessionStorage.setItem('washstation_staff', JSON.stringify({
+      // Store pending staff for confirmation page
+      sessionStorage.setItem('washstation_pending_staff', JSON.stringify({
         id: result.staffId,
         name: result.staffName,
-        signedInAt: new Date().toISOString()
+        role: 'Attendant'
       }));
 
-      // Record attendance (in production, this would go to backend)
-      console.log('Attendance recorded:', {
-        staffId: result.staffId,
-        staffName: result.staffName,
-        branchId: branch?.id,
-        action: 'sign_in',
-        timestamp: new Date()
-      });
-
-      // Redirect to dashboard after short delay
+      // Redirect to confirm clock-in page
       setTimeout(() => {
-        navigate('/washstation/dashboard');
+        navigate('/washstation/confirm-clock-in');
       }, 1500);
     } else {
       setErrorMessage('Authentication failed. Please try again.');
