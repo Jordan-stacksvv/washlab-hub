@@ -389,7 +389,7 @@ const AdminDashboard = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary via-primary/95 to-primary flex flex-col">
         <header className="p-4 md:p-6 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/admin" className="flex items-center gap-2">
             <Logo size="md" />
           </Link>
           <Link 
@@ -449,7 +449,7 @@ const AdminDashboard = () => {
       {/* Sidebar */}
       <aside className="w-64 bg-primary flex flex-col fixed h-screen">
         <div className="p-6 border-b border-white/10">
-          <Link to="/">
+          <Link to="/admin">
             <Logo size="sm" />
           </Link>
         </div>

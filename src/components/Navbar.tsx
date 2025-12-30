@@ -83,14 +83,6 @@ export const Navbar = () => {
                   {link.label}
                 </Link>
               ))}
-              <div className="flex gap-2 mt-3 pt-3 border-t border-border">
-                <Link to="/staff" className="flex-1" onClick={() => setIsOpen(false)}>
-                  <Button variant="outline" size="sm" className="w-full rounded-xl">Staff</Button>
-                </Link>
-                <Link to="/admin" className="flex-1" onClick={() => setIsOpen(false)}>
-                  <Button size="sm" className="w-full rounded-xl bg-primary">Admin</Button>
-                </Link>
-              </div>
             </div>
           </div>
         )}
