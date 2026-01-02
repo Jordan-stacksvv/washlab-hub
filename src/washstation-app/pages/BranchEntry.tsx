@@ -6,11 +6,7 @@ import { Label } from '@/components/ui/label';
 import washLabLogo from '@/assets/washlab-logo.png';
 import { Building2, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
-
-// Default branch - Academic City
-const BRANCHES = [
-  { id: 'academic-city', name: 'Academic City', code: 'ACD' },
-];
+import { getActiveBranches, getBranchByCode, Branch } from '@/config/branches';
 
 /**
  * Branch Entry Page
@@ -22,14 +18,15 @@ const BRANCHES = [
 const BranchEntry = () => {
   const navigate = useNavigate();
   const [branchCode, setBranchCode] = useState('');
-  const [selectedBranch, setSelectedBranch] = useState<typeof BRANCHES[0] | null>(null);
+  const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
+  const activeBranches = getActiveBranches();
 
   const handleCodeChange = (code: string) => {
     const upperCode = code.toUpperCase();
     setBranchCode(upperCode);
     
-    const branch = BRANCHES.find(b => b.code === upperCode);
-    setSelectedBranch(branch || null);
+    const branch = getBranchByCode(upperCode);
+    setSelectedBranch(branch && branch.isActive ? branch : null);
   };
 
   const handleContinue = () => {
@@ -96,7 +93,7 @@ const BranchEntry = () => {
 
             <div className="mt-6 pt-6 border-t border-border">
               <p className="text-xs text-center text-muted-foreground">
-                Available codes: ACD (Academic City)
+                Available codes: {activeBranches.map(b => `${b.code} (${b.name})`).join(', ')}
               </p>
               <p className="text-xs text-center text-amber-600 mt-2">
                 ⚠️ Preview Mode – Data stored locally

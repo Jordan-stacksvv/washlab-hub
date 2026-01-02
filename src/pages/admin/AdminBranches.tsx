@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PRICING_CONFIG } from '@/config/pricing';
+import { BRANCHES as CENTRAL_BRANCHES } from '@/config/branches';
 import { toast } from 'sonner';
 import {
   Building2,
@@ -21,16 +22,22 @@ interface Branch {
   code: string;
   isActive: boolean;
   staffCount: number;
+  maxStaff: number;
 }
 
-const mockBranches: Branch[] = [
-  { id: '1', name: 'Pentagon Hall', location: 'KNUST Campus', code: 'PNT', isActive: true, staffCount: 3 },
-  { id: '2', name: 'Brunei Hostel', location: 'KNUST Campus', code: 'BRN', isActive: true, staffCount: 2 },
-  { id: '3', name: 'Unity Hall', location: 'KNUST Campus', code: 'UNT', isActive: false, staffCount: 0 },
-];
+// Initialize from centralized config
+const initialBranches: Branch[] = CENTRAL_BRANCHES.map(b => ({
+  id: b.id,
+  name: b.name,
+  location: b.location,
+  code: b.code,
+  isActive: b.isActive,
+  staffCount: 0,
+  maxStaff: b.maxStaff,
+}));
 
 const AdminBranches = () => {
-  const [branches, setBranches] = useState<Branch[]>(mockBranches);
+  const [branches, setBranches] = useState<Branch[]>(initialBranches);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newBranch, setNewBranch] = useState({ name: '', location: '', code: '' });
 
@@ -46,7 +53,8 @@ const AdminBranches = () => {
       location: newBranch.location,
       code: newBranch.code.toUpperCase(),
       isActive: true,
-      staffCount: 0
+      staffCount: 0,
+      maxStaff: 2,
     };
 
     setBranches([...branches, branch]);

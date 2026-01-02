@@ -16,6 +16,7 @@ import {
   Shield,
   AlertTriangle
 } from 'lucide-react';
+import { getActiveBranches } from '@/config/branches';
 
 // ============================================
 // KILL SWITCH - Set to false to disable enrollment
@@ -40,13 +41,8 @@ interface EnrolledStaffData {
   token: string;
 }
 
-// Demo branches for preview mode
-const DEMO_BRANCHES = [
-  { id: 'branch-001', name: 'Accra Central' },
-  { id: 'branch-002', name: 'East Legon' },
-  { id: 'branch-003', name: 'Osu Oxford Street' },
-  { id: 'branch-004', name: 'Tema Community 1' },
-];
+// Use centralized branch config
+const DEMO_BRANCHES = getActiveBranches().map(b => ({ id: b.id, name: b.name }));
 
 // Demo roles
 const STAFF_ROLES = [
@@ -55,6 +51,7 @@ const STAFF_ROLES = [
   { id: 'ironer', name: 'Ironer' },
   { id: 'supervisor', name: 'Supervisor' },
   { id: 'cashier', name: 'Cashier' },
+  { id: 'attendant', name: 'Attendant' },
 ];
 
 // Fake token validation (always returns true in preview mode)
