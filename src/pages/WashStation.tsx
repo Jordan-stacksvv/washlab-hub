@@ -8,6 +8,7 @@ import { ORDER_STAGES, OrderStatus } from '@/types';
 import { useOrders, Order, PaymentMethod } from '@/context/OrderContext';
 import { useWebAuthn } from '@/hooks/useWebAuthn';
 import { PRICING_CONFIG, getServiceById, calculateTotalPrice, calculateLoads } from '@/config/pricing';
+import { getBranchById } from '@/config/branches';
 import washLabLogo from '@/assets/washlab-logo.png';
 import stackedClothes from '@/assets/stacked-clothes.jpg';
 import { 
@@ -107,6 +108,9 @@ const WashStation = () => {
   const [paymentMethod, setPaymentMethod] = useState<'mobile_money' | 'card' | 'cash'>('mobile_money');
   const [signedInStaff, setSignedInStaff] = useState<SignedInStaff[]>([]);
   const [branchName, setBranchName] = useState('Academic City');
+  const [branchMaxStaff, setBranchMaxStaff] = useState(2);
+  const [showBranchSettings, setShowBranchSettings] = useState(false);
+  const [branchStatus, setBranchStatus] = useState<'online' | 'offline'>('online');
 
   // Load active staff from sessionStorage
   useEffect(() => {
@@ -121,12 +125,23 @@ const WashStation = () => {
           role: s.role || 'Attendant',
           signedInAt: new Date(s.clockInTime || s.signedInAt || Date.now())
         })));
+      } else {
+        setSignedInStaff([]);
       }
       
       const branchData = sessionStorage.getItem('washlab_branch');
       if (branchData) {
         const branch = JSON.parse(branchData);
         setBranchName(branch.name || 'Academic City');
+        // Get max staff from centralized config
+        const configBranch = getBranchById(branch.id);
+        setBranchMaxStaff(configBranch?.maxStaff || 2);
+      }
+      
+      // Load branch status
+      const storedStatus = sessionStorage.getItem('washlab_branch_status');
+      if (storedStatus) {
+        setBranchStatus(storedStatus as 'online' | 'offline');
       }
     };
     
@@ -140,6 +155,15 @@ const WashStation = () => {
   const [showEnrollDialog, setShowEnrollDialog] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>('light');
   const [showNotifications, setShowNotifications] = useState(false);
+
+  // Toggle branch online/offline status
+  const toggleBranchStatus = () => {
+    const newStatus = branchStatus === 'online' ? 'offline' : 'online';
+    setBranchStatus(newStatus);
+    sessionStorage.setItem('washlab_branch_status', newStatus);
+    toast.success(`Branch is now ${newStatus}`);
+    setShowBranchSettings(false);
+  };
 
   // Toggle dark/light mode
   const toggleTheme = () => {
@@ -295,13 +319,15 @@ const WashStation = () => {
       
       <div className="flex items-center gap-4">
         {/* Attendance Button - only show if more staff can clock in */}
-        <Link 
-          to="/washstation/scan" 
-          className="px-3 py-2 rounded-lg hover:bg-muted transition-colors text-sm font-medium text-muted-foreground hover:text-foreground flex items-center gap-2"
-        >
-          <Users className="w-4 h-4" />
-          Attendance
-        </Link>
+        {signedInStaff.length < branchMaxStaff && (
+          <Link 
+            to="/washstation/scan" 
+            className="px-3 py-2 rounded-lg hover:bg-muted transition-colors text-sm font-medium text-muted-foreground hover:text-foreground flex items-center gap-2"
+          >
+            <Users className="w-4 h-4" />
+            Attendance
+          </Link>
+        )}
         
         {/* Theme Toggle Button */}
         <button 
@@ -339,13 +365,66 @@ const WashStation = () => {
           )}
         </button>
 
-        {/* Settings */}
-        <button 
-          onClick={() => setMainView('settings')}
-          className="p-2 rounded-lg hover:bg-muted transition-colors"
-        >
-          <Settings className="w-5 h-5 text-muted-foreground" />
-        </button>
+        {/* Branch Settings Dropdown */}
+        <div className="relative">
+          <button 
+            onClick={() => setShowBranchSettings(!showBranchSettings)}
+            className="p-2 rounded-lg hover:bg-muted transition-colors"
+          >
+            <Settings className="w-5 h-5 text-muted-foreground" />
+          </button>
+          
+          {showBranchSettings && (
+            <>
+              <div 
+                className="fixed inset-0 z-40"
+                onClick={() => setShowBranchSettings(false)} 
+              />
+              <div className="absolute right-0 top-full mt-2 w-64 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden">
+                <div className="p-4 border-b border-border">
+                  <h3 className="font-semibold text-foreground">Branch Settings</h3>
+                  <p className="text-xs text-muted-foreground">{branchName}</p>
+                </div>
+                
+                <div className="p-2">
+                  <button
+                    onClick={toggleBranchStatus}
+                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-colors ${
+                      branchStatus === 'online' 
+                        ? 'hover:bg-destructive/10 text-destructive' 
+                        : 'hover:bg-green-50 text-green-600'
+                    }`}
+                  >
+                    <div className={`w-3 h-3 rounded-full ${
+                      branchStatus === 'online' ? 'bg-green-500' : 'bg-gray-400'
+                    }`} />
+                    <div>
+                      <p className="font-medium">
+                        {branchStatus === 'online' ? 'Go Offline' : 'Go Online'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {branchStatus === 'online' 
+                          ? 'Stop accepting new orders' 
+                          : 'Start accepting orders'}
+                      </p>
+                    </div>
+                  </button>
+                  
+                  <div className="mt-2 px-3 py-2 bg-muted/50 rounded-lg">
+                    <p className="text-xs text-muted-foreground">
+                      Staff on shift: {signedInStaff.length}/{branchMaxStaff}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Status: <span className={branchStatus === 'online' ? 'text-green-600' : 'text-muted-foreground'}>
+                        {branchStatus === 'online' ? '● Online' : '○ Offline'}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
         
         {/* Attendant Bubbles */}
         <div className="flex items-center gap-2 pl-4 border-l border-border">
