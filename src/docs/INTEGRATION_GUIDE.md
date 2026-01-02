@@ -34,7 +34,7 @@ WashLab is a campus laundry management system. This document covers the current 
 
 ## Current State Management
 
-Orders are currently stored in **localStorage** via `OrderContext`. For production deployment, you'll want to integrate a backend database.
+Orders are currently stored in **localStorage** via `OrderContext`. For production deployment, integrate with **Convex** for real-time data sync.
 
 ---
 
@@ -103,21 +103,24 @@ pending_dropoff → checked_in → sorting → washing → drying → folding �
 
 ---
 
-## Future Integrations (When Backend is Added)
+## Backend Integration (Convex)
 
-### 1. Database (Lovable Cloud / Supabase)
+### 1. Database (Convex)
 - Real-time order sync across devices
 - Persistent storage
 - User authentication
+- Reactive queries (auto-updates UI)
 
-### 2. Payment Gateway (Paystack/Hubtel)
+### 2. Payment Gateway (Hubtel)
 - Mobile Money payments
 - USSD integration
 - Card payments
+- See `HUBTEL_INTEGRATION.md` for details
 
 ### 3. Staff Authentication
 - PIN-based login (current)
-- Optional: Biometric/Face ID
+- WebAuthn/Face ID for biometric verification
+- See `CODE_CHANGE_LOCATIONS.md` for implementation details
 
 ---
 
@@ -137,3 +140,43 @@ const POINTS_FOR_FREE_WASH = 10;
 - `mobile_money` - MTN/Vodafone Mobile Money
 - `card` - Card payment
 - `cash` - Physical cash
+
+---
+
+## Getting Started with Convex
+
+### 1. Install Convex
+```bash
+npm install convex
+npx convex dev
+```
+
+### 2. Create Schema
+See `CODE_CHANGE_LOCATIONS.md` for the full Convex schema.
+
+### 3. Setup Provider
+```typescript
+// src/main.tsx
+import { ConvexProvider, ConvexReactClient } from "convex/react";
+
+const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL);
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <ConvexProvider client={convex}>
+    <App />
+  </ConvexProvider>
+);
+```
+
+### 4. Use in Components
+```typescript
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+
+// Read data (reactive)
+const orders = useQuery(api.orders.list);
+
+// Write data
+const createOrder = useMutation(api.orders.create);
+await createOrder({ ... });
+```

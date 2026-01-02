@@ -11,7 +11,7 @@ Hubtel provides USSD-based mobile money payment services in Ghana. This integrat
 
 ## Required Credentials
 
-Store these in Lovable Cloud secrets:
+Store these in Convex environment variables (Settings → Environment Variables):
 - `HUBTEL_CLIENT_ID` - Your Hubtel client ID
 - `HUBTEL_CLIENT_SECRET` - Your Hubtel client secret
 - `HUBTEL_MERCHANT_ACCOUNT_NUMBER` - Your merchant account
@@ -21,71 +21,116 @@ Store these in Lovable Cloud secrets:
 ### 1. Initiate Payment
 
 ```typescript
-// File: src/lib/hubtel.ts (create this file)
+// File: convex/hubtel.ts
+
+import { action } from "./_generated/server";
+import { v } from "convex/values";
 
 const HUBTEL_BASE_URL = 'https://api.hubtel.com/v1';
 
-interface PaymentRequest {
-  customerPhone: string;
-  amount: number;
-  orderId: string;
-  description: string;
-}
-
-export async function initiatePayment(request: PaymentRequest) {
-  const response = await fetch(`${HUBTEL_BASE_URL}/merchantaccount/merchants/{accountNumber}/receive/mobilemoney`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${btoa(`${HUBTEL_CLIENT_ID}:${HUBTEL_CLIENT_SECRET}`)}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      CustomerMsisdn: request.customerPhone,
-      Amount: request.amount,
-      PrimaryCallbackUrl: 'https://yourapp.com/api/hubtel/callback',
-      Description: request.description,
-      ClientReference: request.orderId,
-    }),
-  });
-  
-  return response.json();
-}
-```
-
-### 2. Payment Callback Webhook
-
-Create an edge function to handle Hubtel callbacks:
-
-```typescript
-// Edge function: supabase/functions/hubtel-callback/index.ts
-
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-serve(async (req) => {
-  const payload = await req.json();
-  
-  // Verify the payment status
-  if (payload.Status === 'Success') {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+export const initiatePayment = action({
+  args: {
+    customerPhone: v.string(),
+    amount: v.number(),
+    orderId: v.string(),
+    description: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const clientId = process.env.HUBTEL_CLIENT_ID;
+    const clientSecret = process.env.HUBTEL_CLIENT_SECRET;
+    const accountNumber = process.env.HUBTEL_MERCHANT_ACCOUNT_NUMBER;
+    
+    const response = await fetch(
+      `${HUBTEL_BASE_URL}/merchantaccount/merchants/${accountNumber}/receive/mobilemoney`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          CustomerMsisdn: args.customerPhone,
+          Amount: args.amount,
+          PrimaryCallbackUrl: 'https://yourapp.com/api/hubtel/callback',
+          Description: args.description,
+          ClientReference: args.orderId,
+        }),
+      }
     );
     
-    // Update order payment status
-    await supabase
-      .from('orders')
-      .update({ 
-        payment_status: 'paid',
-        payment_method: 'hubtel',
-        paid_at: new Date().toISOString(),
-      })
-      .eq('id', payload.ClientReference);
-  }
-  
-  return new Response(JSON.stringify({ received: true }), {
-    headers: { 'Content-Type': 'application/json' },
-  });
+    return response.json();
+  },
+});
+```
+
+### 2. Payment Callback (HTTP Action)
+
+Create an HTTP action to handle Hubtel callbacks:
+
+```typescript
+// File: convex/http.ts
+
+import { httpRouter } from "convex/server";
+import { httpAction } from "./_generated/server";
+import { api } from "./_generated/api";
+
+const http = httpRouter();
+
+http.route({
+  path: "/hubtel-callback",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const payload = await request.json();
+    
+    // Verify the payment status
+    if (payload.Status === 'Success') {
+      // Update order payment status via mutation
+      await ctx.runMutation(api.orders.updatePaymentStatus, {
+        orderId: payload.ClientReference,
+        paymentStatus: 'paid',
+        paymentMethod: 'hubtel',
+      });
+    }
+    
+    return new Response(JSON.stringify({ received: true }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }),
+});
+
+export default http;
+```
+
+### 3. Order Mutation for Payment Status
+
+```typescript
+// File: convex/orders.ts
+
+import { mutation } from "./_generated/server";
+import { v } from "convex/values";
+
+export const updatePaymentStatus = mutation({
+  args: {
+    orderId: v.string(),
+    paymentStatus: v.string(),
+    paymentMethod: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const order = await ctx.db
+      .query("orders")
+      .filter((q) => q.eq(q.field("_id"), args.orderId))
+      .first();
+    
+    if (order) {
+      await ctx.db.patch(order._id, {
+        paymentStatus: args.paymentStatus,
+        paymentMethod: args.paymentMethod,
+        paidAt: Date.now(),
+      });
+    }
+    
+    return { success: true };
+  },
 });
 ```
 
@@ -101,9 +146,9 @@ serve(async (req) => {
    - Add Hubtel payment status tracking
    - Add webhook response handling
 
-3. **Create Edge Function**
-   - Path: `supabase/functions/hubtel-callback/index.ts`
-   - Handles payment confirmations from Hubtel
+3. **Create Convex Actions**
+   - Path: `convex/hubtel.ts`
+   - Path: `convex/http.ts` for callback handling
 
 ### Code Changes Required
 
@@ -116,9 +161,14 @@ if (method === 'hubtel' || method === 'momo') {
 }
 
 // With:
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+
+const initiatePayment = useMutation(api.hubtel.initiatePayment);
+
 if (method === 'hubtel' || method === 'momo') {
   try {
-    const result = await initiateHubtelPayment({
+    const result = await initiatePayment({
       customerPhone: completedOrder.customerPhone,
       amount: completedOrder.totalPrice || 0,
       orderId: completedOrder.id,
@@ -145,7 +195,7 @@ if (method === 'hubtel' || method === 'momo') {
 ## Security Notes
 
 - Never expose API credentials in frontend code
-- Always process payments through edge functions
+- Always process payments through Convex actions (server-side)
 - Verify WebAuthn before initiating payments (already implemented)
 - Log all payment attempts for audit purposes
 

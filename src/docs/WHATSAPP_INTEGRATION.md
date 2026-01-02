@@ -41,53 +41,102 @@ const sendWhatsAppReceipt = (order: Order) => {
    - Apply at developers.facebook.com
    - Get phone number verified
 
-3. **Required Secrets**
+3. **Required Environment Variables (Convex)**
    - `WHATSAPP_ACCESS_TOKEN` - API access token
    - `WHATSAPP_PHONE_NUMBER_ID` - Your business phone number ID
    - `WHATSAPP_BUSINESS_ACCOUNT_ID` - Business account ID
+   - `WHATSAPP_VERIFY_TOKEN` - Webhook verification token
 
 ## API Implementation
 
-### 1. Send Message Edge Function
+### 1. Send Message Action
 
 ```typescript
-// Edge function: supabase/functions/whatsapp-send/index.ts
+// File: convex/whatsapp.ts
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { action } from "./_generated/server";
+import { v } from "convex/values";
 
 const WHATSAPP_API_URL = 'https://graph.facebook.com/v18.0';
 
-serve(async (req) => {
-  const { to, template, parameters } = await req.json();
-  
-  const response = await fetch(
-    `${WHATSAPP_API_URL}/${Deno.env.get('WHATSAPP_PHONE_NUMBER_ID')}/messages`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('WHATSAPP_ACCESS_TOKEN')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: to,
-        type: 'template',
-        template: {
-          name: template,
-          language: { code: 'en' },
-          components: parameters,
+export const sendMessage = action({
+  args: {
+    to: v.string(),
+    template: v.string(),
+    parameters: v.array(v.object({
+      type: v.string(),
+      text: v.string(),
+    })),
+  },
+  handler: async (ctx, args) => {
+    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    
+    const response = await fetch(
+      `${WHATSAPP_API_URL}/${phoneNumberId}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
         },
-      }),
-    }
-  );
-  
-  return new Response(JSON.stringify(await response.json()), {
-    headers: { 'Content-Type': 'application/json' },
-  });
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: args.to,
+          type: 'template',
+          template: {
+            name: args.template,
+            language: { code: 'en' },
+            components: args.parameters,
+          },
+        }),
+      }
+    );
+    
+    return response.json();
+  },
 });
 ```
 
-### 2. Message Templates
+### 2. HTTP Action for Webhook
+
+```typescript
+// File: convex/http.ts (add to existing)
+
+http.route({
+  path: "/whatsapp-webhook",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    // Webhook verification
+    const url = new URL(request.url);
+    const mode = url.searchParams.get('hub.mode');
+    const token = url.searchParams.get('hub.verify_token');
+    const challenge = url.searchParams.get('hub.challenge');
+    
+    if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN) {
+      return new Response(challenge);
+    }
+    return new Response('Forbidden', { status: 403 });
+  }),
+});
+
+http.route({
+  path: "/whatsapp-webhook",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    // Handle incoming messages
+    const payload = await request.json();
+    console.log('Incoming WhatsApp message:', payload);
+    
+    // Process customer replies here
+    // You can call mutations to store messages
+    
+    return new Response('OK');
+  }),
+});
+```
+
+### 3. Message Templates
 
 Create these templates in Meta Business Suite:
 
@@ -139,13 +188,18 @@ Thank you for your payment!
 2. **Order Status Updates** - `src/context/OrderContext.tsx`
    - Add notification triggers on status changes
 
-3. **Create Edge Function**
-   - Path: `supabase/functions/whatsapp-send/index.ts`
+3. **Create Convex Actions**
+   - Path: `convex/whatsapp.ts`
+   - Path: `convex/http.ts` (add webhook routes)
 
 ### Code Changes Required
 
 ```typescript
 // Replace in src/pages/WashStation.tsx:
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+
+const sendWhatsAppMessage = useMutation(api.whatsapp.sendMessage);
 
 // Current (basic):
 const sendWhatsAppReceipt = (order: Order) => {
@@ -155,24 +209,20 @@ const sendWhatsAppReceipt = (order: Order) => {
 // Production (API):
 const sendWhatsAppReceipt = async (order: Order) => {
   try {
-    const response = await fetch('/api/whatsapp-send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        to: formatGhanaPhone(order.customerPhone),
-        template: 'order_confirmation',
-        parameters: [
-          { type: 'text', text: order.customerName },
-          { type: 'text', text: order.code },
-          { type: 'text', text: getServiceLabel(order) },
-          { type: 'text', text: order.totalPrice?.toFixed(2) },
-          { type: 'text', text: getEstimatedTime() },
-          { type: 'text', text: `washlab.com/track/${order.id}` },
-        ],
-      }),
+    const response = await sendWhatsAppMessage({
+      to: formatGhanaPhone(order.customerPhone),
+      template: 'order_confirmation',
+      parameters: [
+        { type: 'text', text: order.customerName },
+        { type: 'text', text: order.code },
+        { type: 'text', text: getServiceLabel(order) },
+        { type: 'text', text: order.totalPrice?.toFixed(2) || '0' },
+        { type: 'text', text: getEstimatedTime() },
+        { type: 'text', text: `washlab.com/track/${order.id}` },
+      ],
     });
     
-    if (response.ok) {
+    if (response.messages) {
       toast.success('Receipt sent via WhatsApp');
     }
   } catch (error) {
@@ -199,35 +249,6 @@ function formatGhanaPhone(phone: string): string {
   }
   return `233${cleaned}`; // Assume local without leading 0
 }
-```
-
-## Webhook for Incoming Messages
-
-```typescript
-// Edge function: supabase/functions/whatsapp-webhook/index.ts
-
-serve(async (req) => {
-  if (req.method === 'GET') {
-    // Webhook verification
-    const url = new URL(req.url);
-    const mode = url.searchParams.get('hub.mode');
-    const token = url.searchParams.get('hub.verify_token');
-    const challenge = url.searchParams.get('hub.challenge');
-    
-    if (mode === 'subscribe' && token === Deno.env.get('WHATSAPP_VERIFY_TOKEN')) {
-      return new Response(challenge);
-    }
-    return new Response('Forbidden', { status: 403 });
-  }
-  
-  // Handle incoming messages
-  const payload = await req.json();
-  console.log('Incoming WhatsApp message:', payload);
-  
-  // Process customer replies here
-  
-  return new Response('OK');
-});
 ```
 
 ## Testing
