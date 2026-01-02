@@ -52,6 +52,13 @@ const CustomerAccount = () => {
   const handleLogin = () => {
     if (phone === '0551234567' && password === '1234') {
       setIsLoggedIn(true);
+      // Save user to localStorage for navbar bubble
+      localStorage.setItem('washlab_user', JSON.stringify({
+        name: mockCustomer.name,
+        phone: mockCustomer.phone,
+      }));
+      // Dispatch storage event for same-tab updates
+      window.dispatchEvent(new Event('storage'));
       toast.success('Welcome back!');
     } else {
       toast.error('Invalid credentials. Try phone: 0551234567, password: 1234');
@@ -61,6 +68,13 @@ const CustomerAccount = () => {
   const handleSignup = () => {
     if (phone && password && name) {
       setIsLoggedIn(true);
+      // Save user to localStorage for navbar bubble
+      localStorage.setItem('washlab_user', JSON.stringify({
+        name: name,
+        phone: phone,
+      }));
+      // Dispatch storage event for same-tab updates
+      window.dispatchEvent(new Event('storage'));
       toast.success('Account created successfully!');
     } else {
       toast.error('Please fill in all fields');
@@ -71,6 +85,10 @@ const CustomerAccount = () => {
     setIsLoggedIn(false);
     setPhone('');
     setPassword('');
+    // Remove user from localStorage
+    localStorage.removeItem('washlab_user');
+    // Dispatch storage event for same-tab updates
+    window.dispatchEvent(new Event('storage'));
     toast.success('Logged out successfully');
   };
 

@@ -1,14 +1,60 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Logo } from './Logo';
 import { Button } from './ui/button';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, User } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+
+// Mock user state - replace with actual auth when Convex is integrated
+const useUserSession = () => {
+  const [user, setUser] = useState<{ name: string; phone: string } | null>(null);
+  
+  useEffect(() => {
+    // Check localStorage for logged-in user (demo purposes)
+    const storedUser = localStorage.getItem('washlab_user');
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        setUser(null);
+      }
+    }
+    
+    // Listen for storage events to sync across tabs
+    const handleStorage = () => {
+      const storedUser = localStorage.getItem('washlab_user');
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch {
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+    };
+    
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+  
+  return user;
+};
+
+const getInitials = (name: string) => {
+  return name
+    .split(' ')
+    .map(part => part.charAt(0))
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+};
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+  const user = useUserSession();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -21,7 +67,6 @@ export const Navbar = () => {
   const navLinks = [
     { href: '/order', label: 'Place Order' },
     { href: '/track', label: 'Track Order' },
-    { href: '/account', label: 'Account' },
   ];
 
   return (
@@ -53,15 +98,52 @@ export const Navbar = () => {
                 {link.label}
               </Link>
             ))}
+            
+            {/* User Bubble or Account Link */}
+            {user ? (
+              <Link
+                to="/account"
+                className="ml-2 flex items-center gap-2 px-3 py-2 rounded-full bg-primary/10 hover:bg-primary/20 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-xs font-bold text-primary-foreground">
+                  {getInitials(user.name)}
+                </div>
+                <span className="text-sm font-medium text-foreground hidden lg:block">
+                  {user.name.split(' ')[0]}
+                </span>
+              </Link>
+            ) : (
+              <Link
+                to="/account"
+                className={cn(
+                  'px-4 py-2 rounded-full text-sm font-medium transition-all',
+                  location.pathname === '/account' 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'text-foreground hover:bg-muted'
+                )}
+              >
+                Account
+              </Link>
+            )}
           </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            className="md:hidden p-2 rounded-lg hover:bg-muted transition-colors"
-            onClick={() => setIsOpen(!isOpen)}
-          >
-            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          {/* Mobile: User bubble + Menu */}
+          <div className="flex md:hidden items-center gap-2">
+            {user && (
+              <Link
+                to="/account"
+                className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-xs font-bold text-primary-foreground"
+              >
+                {getInitials(user.name)}
+              </Link>
+            )}
+            <button
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              onClick={() => setIsOpen(!isOpen)}
+            >
+              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Navigation */}
@@ -83,6 +165,20 @@ export const Navbar = () => {
                   {link.label}
                 </Link>
               ))}
+              {!user && (
+                <Link
+                  to="/account"
+                  className={cn(
+                    'px-4 py-3 rounded-xl transition-colors font-medium',
+                    location.pathname === '/account'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-foreground hover:bg-muted'
+                  )}
+                  onClick={() => setIsOpen(false)}
+                >
+                  Account
+                </Link>
+              )}
             </div>
           </div>
         )}

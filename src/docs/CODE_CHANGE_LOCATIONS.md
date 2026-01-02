@@ -1,6 +1,6 @@
 # WashLab Code Change Locations Guide
 
-This document maps all key functionality to specific file locations for easy backend integration.
+This document maps all key functionality to specific file locations for easy backend integration with **Convex**.
 
 ## 🔐 Authentication & Enrollment
 
@@ -12,11 +12,40 @@ This document maps all key functionality to specific file locations for easy bac
 
 **What to change for backend:**
 ```typescript
-// In useWebAuthn.ts, replace localStorage with API calls:
+// In useWebAuthn.ts, replace localStorage with Convex queries/mutations:
 // Line 14-27: getStoredCredentials() & storeCredential()
-// Replace with:
-// - GET /api/staff/credentials
-// - POST /api/staff/credentials
+
+// Create convex/staffCredentials.ts:
+import { query, mutation } from "./_generated/server";
+import { v } from "convex/values";
+
+export const getCredentials = query({
+  args: { staffId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    if (args.staffId) {
+      return await ctx.db
+        .query("staffCredentials")
+        .filter((q) => q.eq(q.field("staffId"), args.staffId))
+        .collect();
+    }
+    return await ctx.db.query("staffCredentials").collect();
+  },
+});
+
+export const storeCredential = mutation({
+  args: {
+    staffId: v.string(),
+    staffName: v.string(),
+    credentialId: v.string(),
+    publicKey: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("staffCredentials", {
+      ...args,
+      createdAt: Date.now(),
+    });
+  },
+});
 ```
 
 ### Staff Enrollment
@@ -25,15 +54,21 @@ This document maps all key functionality to specific file locations for easy bac
 
 **Backend integration:**
 ```typescript
+// Replace localStorage with Convex mutation:
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+
+const createEnrollment = useMutation(api.staffEnrollments.create);
+
 // Line ~85-115: Replace localStorage.setItem with:
-await supabase.from('staff_enrollments').insert({
+await createEnrollment({
   token: enrollmentToken,
-  staff_id: newStaffId,
+  staffId: newStaffId,
   name: formData.name,
   phone: formData.phone,
   role: formData.role,
-  branch_id: formData.branch,
-  webauthn_credential: credentialData,
+  branchId: formData.branch,
+  webauthnCredential: credentialData,
 });
 ```
 
@@ -52,14 +87,18 @@ if (method === 'hubtel' || method === 'momo') {
 }
 ```
 
-**Replace with:**
+**Replace with Convex action:**
 ```typescript
-const response = await supabase.functions.invoke('hubtel-payment', {
-  body: {
-    phone: completedOrder.customerPhone,
-    amount: completedOrder.totalPrice,
-    orderId: completedOrder.id,
-  },
+import { useAction } from "convex/react";
+import { api } from "../../convex/_generated/api";
+
+const initiatePayment = useAction(api.hubtel.initiatePayment);
+
+const response = await initiatePayment({
+  customerPhone: completedOrder.customerPhone,
+  amount: completedOrder.totalPrice || 0,
+  orderId: completedOrder.id,
+  description: `WashLab Order ${completedOrder.code}`,
 });
 ```
 
@@ -91,33 +130,60 @@ processPayment(method, staffId);
 **Backend integration points:**
 
 ```typescript
-// ConfirmClockIn.tsx - Line ~80-95
-// Replace:
-localStorage.setItem('washlab_attendance_log', JSON.stringify(attendanceLog));
+// Create convex/attendance.ts:
+import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
 
-// With:
-await supabase.from('attendance_logs').insert({
-  staff_id: staffData.id,
-  branch_id: branch.id,
-  action: 'clock_in',
-  timestamp: new Date().toISOString(),
-  shift_id: newStaffEntry.shiftId,
+export const logAttendance = mutation({
+  args: {
+    staffId: v.string(),
+    branchId: v.string(),
+    action: v.string(), // 'clock_in', 'clock_out', 'break_start', 'break_end'
+    shiftId: v.string(),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("attendanceLogs", {
+      ...args,
+      timestamp: Date.now(),
+    });
+  },
+});
+
+export const getActiveStaff = query({
+  args: { branchId: v.string() },
+  handler: async (ctx, args) => {
+    // Get staff who clocked in but haven't clocked out
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return await ctx.db
+      .query("attendanceLogs")
+      .filter((q) => 
+        q.and(
+          q.eq(q.field("branchId"), args.branchId),
+          q.gte(q.field("timestamp"), today.getTime()),
+          q.eq(q.field("action"), "clock_in")
+        )
+      )
+      .collect();
+  },
 });
 ```
 
 ### Active Staff Tracking
 - **Dashboard**: `src/pages/WashStation.tsx` - Line ~107-109
-- **Storage**: Currently sessionStorage (`washstation_active_staff`)
+- **Storage**: Currently sessionStorage (`washlab_active_staff`)
 
-**For real-time sync:**
+**For real-time sync with Convex:**
 ```typescript
-// Subscribe to active staff changes
-const subscription = supabase
-  .channel('active-staff')
-  .on('postgres_changes', { event: '*', schema: 'public', table: 'active_shifts' }, 
-    (payload) => setActiveStaff(payload.new)
-  )
-  .subscribe();
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+
+// Real-time active staff subscription
+const activeStaff = useQuery(api.attendance.getActiveStaff, {
+  branchId: currentBranch.id,
+});
 ```
 
 ---
@@ -130,20 +196,44 @@ const subscription = supabase
 
 **Backend integration:**
 ```typescript
-// Replace context state with Supabase
-const addOrder = async (orderData) => {
-  const { data, error } = await supabase
-    .from('orders')
-    .insert(orderData)
-    .select()
-    .single();
-  return data;
-};
-```
+// Create convex/orders.ts:
+import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
 
-### Order Status Updates
-- **File**: `src/context/OrderContext.tsx`
-- **Function**: `updateOrder()` (Line ~varies)
+export const createOrder = mutation({
+  args: {
+    code: v.string(),
+    customerPhone: v.string(),
+    customerName: v.string(),
+    items: v.array(v.object({
+      serviceId: v.string(),
+      quantity: v.number(),
+      price: v.number(),
+    })),
+    totalPrice: v.number(),
+    orderType: v.string(),
+    branchId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("orders", {
+      ...args,
+      status: "pending_dropoff",
+      paymentStatus: "pending",
+      createdAt: Date.now(),
+    });
+  },
+});
+
+export const updateOrderStatus = mutation({
+  args: {
+    orderId: v.id("orders"),
+    status: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.orderId, { status: args.status });
+  },
+});
+```
 
 ### Order Display
 - **WashStation Dashboard**: `src/pages/WashStation.tsx`
@@ -157,17 +247,19 @@ const addOrder = async (orderData) => {
 - **File**: `src/washstation-app/pages/BranchEntry.tsx` - Line 10-15
 - **Current**: Mock data `BRANCHES` array
 
-**Replace with:**
+**Replace with Convex query:**
 ```typescript
-const [branches, setBranches] = useState([]);
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
-useEffect(() => {
-  const fetchBranches = async () => {
-    const { data } = await supabase.from('branches').select('*');
-    setBranches(data);
-  };
-  fetchBranches();
-}, []);
+const branches = useQuery(api.branches.list);
+
+// In convex/branches.ts:
+export const list = query({
+  handler: async (ctx) => {
+    return await ctx.db.query("branches").collect();
+  },
+});
 ```
 
 ### Default Branch (Academic City)
@@ -189,14 +281,17 @@ useEffect(() => {
 window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
 ```
 
-**Replace with API:**
+**Replace with Convex action:**
 ```typescript
-await supabase.functions.invoke('whatsapp-send', {
-  body: {
-    to: phone,
-    template: 'order_confirmation',
-    parameters: [...],
-  },
+import { useAction } from "convex/react";
+import { api } from "../../convex/_generated/api";
+
+const sendWhatsApp = useAction(api.whatsapp.sendMessage);
+
+await sendWhatsApp({
+  to: phone,
+  template: 'order_confirmation',
+  parameters: [...],
 });
 ```
 
@@ -204,22 +299,23 @@ await supabase.functions.invoke('whatsapp-send', {
 
 ## 🗄️ Data Storage Locations
 
-### localStorage Keys (Replace with Database)
+### localStorage Keys (Replace with Convex Tables)
 
-| Key | Current Use | Replacement Table |
-|-----|------------|-------------------|
-| `washlab_webauthn_credentials` | Staff biometrics | `staff_credentials` |
-| `washlab_enrollments` | Staff enrollments | `staff_enrollments` |
-| `washlab_attendance_log` | Attendance records | `attendance_logs` |
+| Key | Current Use | Convex Table |
+|-----|------------|--------------|
+| `washlab_webauthn_credentials` | Staff biometrics | `staffCredentials` |
+| `washlab_enrollments` | Staff enrollments | `staffEnrollments` |
+| `washlab_attendance_log` | Attendance records | `attendanceLogs` |
+| `washlab_orders` | Order data | `orders` |
 
 ### sessionStorage Keys (Keep for Session)
 
 | Key | Use | Notes |
 |-----|-----|-------|
-| `washstation_branch` | Current branch | Session-specific |
-| `washstation_staff` | Current staff | Session-specific |
-| `washstation_active_staff` | All active staff | Could sync with DB |
-| `washstation_pending_staff` | Pre-confirmation | Session-specific |
+| `washlab_branch` | Current branch | Session-specific |
+| `washlab_staff` | Current staff | Session-specific |
+| `washlab_active_staff` | All active staff | Could sync with Convex |
+| `washlab_pending_staff` | Pre-confirmation | Session-specific |
 
 ---
 
@@ -227,7 +323,7 @@ await supabase.functions.invoke('whatsapp-send', {
 
 ### Pricing
 - **File**: `src/config/pricing.ts`
-- **Move to**: Database `pricing_config` table
+- **Move to**: Convex `pricingConfig` table
 
 ### Theme/UI
 - **File**: `src/index.css` - CSS variables
@@ -235,62 +331,93 @@ await supabase.functions.invoke('whatsapp-send', {
 
 ---
 
-## 🚀 Edge Functions to Create
+## 🚀 Convex Files to Create
 
-1. **`hubtel-payment`** - Process mobile money payments
-2. **`hubtel-callback`** - Handle payment confirmations
-3. **`whatsapp-send`** - Send WhatsApp messages
-4. **`whatsapp-webhook`** - Receive WhatsApp messages
+1. **`convex/hubtel.ts`** - Process mobile money payments
+2. **`convex/whatsapp.ts`** - Send WhatsApp messages
+3. **`convex/http.ts`** - HTTP actions for callbacks/webhooks
+4. **`convex/orders.ts`** - Order CRUD operations
+5. **`convex/attendance.ts`** - Attendance tracking
+6. **`convex/staffEnrollments.ts`** - Staff management
+7. **`convex/branches.ts`** - Branch management
+8. **`convex/staffCredentials.ts`** - WebAuthn credentials
 
 ---
 
-## 📋 Database Tables to Create
+## 📋 Convex Schema
 
-```sql
--- Staff & Authentication
-CREATE TABLE staff_enrollments (
-  id UUID PRIMARY KEY,
-  name TEXT NOT NULL,
-  phone TEXT NOT NULL,
-  role TEXT NOT NULL,
-  branch_id UUID REFERENCES branches(id),
-  webauthn_credential JSONB,
-  enrollment_token TEXT UNIQUE,
-  enrolled_at TIMESTAMPTZ,
-  status TEXT DEFAULT 'pending'
-);
+```typescript
+// convex/schema.ts
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
 
--- Attendance
-CREATE TABLE attendance_logs (
-  id UUID PRIMARY KEY,
-  staff_id UUID REFERENCES staff_enrollments(id),
-  branch_id UUID REFERENCES branches(id),
-  action TEXT NOT NULL, -- 'clock_in', 'clock_out', 'break_start', 'break_end'
-  timestamp TIMESTAMPTZ DEFAULT NOW(),
-  shift_id TEXT,
-  notes TEXT
-);
-
--- Orders
-CREATE TABLE orders (
-  id UUID PRIMARY KEY,
-  code TEXT UNIQUE NOT NULL,
-  customer_phone TEXT NOT NULL,
-  customer_name TEXT NOT NULL,
-  status TEXT NOT NULL,
-  total_price DECIMAL(10,2),
-  payment_status TEXT DEFAULT 'pending',
-  payment_method TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  processed_by UUID REFERENCES staff_enrollments(id)
-);
-
--- Branches
-CREATE TABLE branches (
-  id UUID PRIMARY KEY,
-  name TEXT NOT NULL,
-  code TEXT UNIQUE NOT NULL,
-  address TEXT,
-  is_active BOOLEAN DEFAULT true
-);
+export default defineSchema({
+  // Staff & Authentication
+  staffEnrollments: defineTable({
+    name: v.string(),
+    phone: v.string(),
+    role: v.string(),
+    branchId: v.string(),
+    webauthnCredential: v.optional(v.any()),
+    enrollmentToken: v.string(),
+    enrolledAt: v.optional(v.number()),
+    status: v.string(), // 'pending', 'active', 'inactive'
+  }),
+  
+  staffCredentials: defineTable({
+    staffId: v.string(),
+    staffName: v.string(),
+    credentialId: v.string(),
+    publicKey: v.string(),
+    createdAt: v.number(),
+  }),
+  
+  // Attendance
+  attendanceLogs: defineTable({
+    staffId: v.string(),
+    branchId: v.string(),
+    action: v.string(), // 'clock_in', 'clock_out', 'break_start', 'break_end'
+    timestamp: v.number(),
+    shiftId: v.string(),
+    notes: v.optional(v.string()),
+  }),
+  
+  // Orders
+  orders: defineTable({
+    code: v.string(),
+    customerPhone: v.string(),
+    customerName: v.string(),
+    items: v.array(v.object({
+      serviceId: v.string(),
+      quantity: v.number(),
+      price: v.number(),
+    })),
+    status: v.string(),
+    totalPrice: v.number(),
+    paymentStatus: v.string(),
+    paymentMethod: v.optional(v.string()),
+    paidAt: v.optional(v.number()),
+    createdAt: v.number(),
+    processedBy: v.optional(v.string()),
+    orderType: v.string(), // 'online', 'walkin'
+    branchId: v.string(),
+  }),
+  
+  // Branches
+  branches: defineTable({
+    name: v.string(),
+    code: v.string(),
+    address: v.optional(v.string()),
+    isActive: v.boolean(),
+  }),
+  
+  // Customers
+  customers: defineTable({
+    phone: v.string(),
+    name: v.string(),
+    email: v.optional(v.string()),
+    loyaltyPoints: v.number(),
+    createdAt: v.number(),
+  }),
+});
 ```
