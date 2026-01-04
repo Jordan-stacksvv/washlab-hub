@@ -23,6 +23,7 @@ const WashStationSidebar = ({ activeStaff, branchName = 'Central Branch', onLogo
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/washstation/dashboard' },
     { id: 'new-order', label: 'New Order', icon: Plus, path: '/washstation/new-order' },
     { id: 'orders', label: 'Active Orders', icon: ClipboardList, path: '/washstation/orders' },
+    { id: 'online-orders', label: 'Online Orders', icon: ClipboardList, path: '/washstation/online-orders' },
     { id: 'customers', label: 'Customers', icon: Users, path: '/washstation/customers' },
     { id: 'inventory', label: 'Inventory', icon: Package, path: '/washstation/inventory' },
   ];

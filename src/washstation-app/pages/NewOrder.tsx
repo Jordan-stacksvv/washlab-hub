@@ -133,7 +133,7 @@ const NewOrder = () => {
     });
     
     toast.success('Order created successfully');
-    navigate('/washstation/orders');
+    navigate('/washstation/payment', { state: { orderId: order.id } });
   };
 
   const handleSaveAsDraft = () => {
