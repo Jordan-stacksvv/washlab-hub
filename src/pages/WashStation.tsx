@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,8 +7,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { ORDER_STAGES, OrderStatus } from '@/types';
 import { useOrders, Order, PaymentMethod } from '@/context/OrderContext';
 import { useWebAuthn } from '@/hooks/useWebAuthn';
+import { useCustomers } from '@/hooks/useCustomers';
+import { useOrderId } from '@/hooks/useOrderId';
 import { PRICING_CONFIG, getServiceById, calculateTotalPrice, calculateLoads } from '@/config/pricing';
 import { getBranchById } from '@/config/branches';
+import WebAuthnVerifyModal from '@/components/WebAuthnVerifyModal';
+import TransactionReceipt from '@/components/TransactionReceipt';
 import washLabLogo from '@/assets/washlab-logo.png';
 import stackedClothes from '@/assets/stacked-clothes.jpg';
 import { 
@@ -43,13 +47,14 @@ import {
   Delete,
   CreditCard,
   Minus,
-  AlertCircle
+  AlertCircle,
+  UserCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 type MainView = 'dashboard' | 'walkin' | 'orders' | 'customers' | 'settings';
 type ThemeMode = 'light' | 'dark';
-type WalkinStep = 'phone' | 'order' | 'delivery' | 'summary' | 'payment' | 'confirmation';
+type WalkinStep = 'phone' | 'name' | 'order' | 'delivery' | 'summary' | 'payment' | 'confirmation';
 
 interface SignedInStaff {
   id: string;
@@ -62,6 +67,7 @@ interface WalkinData {
   phone: string;
   name: string;
   isNewCustomer: boolean;
+  customerId?: string;
   serviceType: 'wash_only' | 'wash_and_dry' | 'dry_only';
   weight: number;
   itemCount: number;
@@ -79,8 +85,11 @@ const serviceTypes = PRICING_CONFIG.services.map(service => ({
 }));
 
 const WashStation = () => {
+  const navigate = useNavigate();
   const { orders, addOrder, updateOrder, getPendingOrders, getActiveOrders, getReadyOrders, getCompletedOrders } = useOrders();
   const { isSupported, isProcessing, enrollStaff, verifyStaff, enrolledStaff } = useWebAuthn();
+  const { findByPhone, createCustomer, incrementOrderStats } = useCustomers();
+  const { orderId: currentOrderId, generateOrderId, resetOrderId, getCurrentOrderId } = useOrderId();
   
   const [mainView, setMainView] = useState<MainView>('dashboard');
   const [walkinStep, setWalkinStep] = useState<WalkinStep>('phone');
@@ -111,6 +120,26 @@ const WashStation = () => {
   const [branchMaxStaff, setBranchMaxStaff] = useState(2);
   const [showBranchSettings, setShowBranchSettings] = useState(false);
   const [branchStatus, setBranchStatus] = useState<'online' | 'offline'>('online');
+  
+  // WebAuthn verification modal
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [pendingPaymentMethod, setPendingPaymentMethod] = useState<PaymentMethod | null>(null);
+  
+  // Transaction receipt
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptAttendant, setReceiptAttendant] = useState('');
+
+  // Check if logged in - redirect to branch entry if not
+  useEffect(() => {
+    const activeStaff = sessionStorage.getItem('washlab_active_staff');
+    const branch = sessionStorage.getItem('washlab_branch');
+    
+    if (!activeStaff || !branch) {
+      // Not logged in - redirect to branch entry
+      navigate('/washstation');
+      return;
+    }
+  }, [navigate]);
 
   // Load active staff from sessionStorage
   useEffect(() => {
@@ -150,6 +179,7 @@ const WashStation = () => {
     window.addEventListener('storage', loadActiveStaff);
     return () => window.removeEventListener('storage', loadActiveStaff);
   }, []);
+  
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [enrollName, setEnrollName] = useState('');
   const [showEnrollDialog, setShowEnrollDialog] = useState(false);
@@ -215,6 +245,7 @@ const WashStation = () => {
       deliveryFee: 0
     });
     setWalkinStep('phone');
+    resetOrderId(); // Reset order ID for new order
   };
 
   // Calculate pricing using centralized config
@@ -223,12 +254,60 @@ const WashStation = () => {
     return calculateTotalPrice(walkinData.serviceType, walkinData.weight, includeDelivery);
   };
 
+  // Check phone number for existing customer
+  const checkPhoneNumber = () => {
+    if (walkinData.phone.length < 9) {
+      toast.error('Please enter a valid phone number');
+      return;
+    }
+
+    const existingCustomer = findByPhone(walkinData.phone);
+    
+    if (existingCustomer) {
+      // Existing customer - auto-load their info
+      setWalkinData(prev => ({
+        ...prev,
+        name: existingCustomer.name,
+        isNewCustomer: false,
+        customerId: existingCustomer.id
+      }));
+      toast.success(`Welcome back, ${existingCustomer.name}!`);
+      // Generate order ID and go directly to order screen
+      generateOrderId();
+      setWalkinStep('order');
+    } else {
+      // New customer - ask for name
+      setWalkinData(prev => ({ ...prev, isNewCustomer: true }));
+      setWalkinStep('name');
+    }
+  };
+
+  // Create new customer and proceed
+  const createNewCustomerAndProceed = () => {
+    if (!walkinData.name.trim()) {
+      toast.error('Please enter customer name');
+      return;
+    }
+
+    const customer = createCustomer(walkinData.phone, walkinData.name);
+    setWalkinData(prev => ({
+      ...prev,
+      customerId: customer.id,
+      isNewCustomer: false
+    }));
+    toast.success(`New profile created for ${walkinData.name}`);
+    // Generate order ID and proceed
+    generateOrderId();
+    setWalkinStep('order');
+  };
+
   // Process walk-in order
   const processWalkinOrder = () => {
     const { total } = calculatePrice();
+    const orderCode = getCurrentOrderId(); // Use stable order ID
     
     const newOrder = addOrder({
-      code: `ORD-${Math.floor(Math.random() * 9000) + 1000}`,
+      code: orderCode,
       customerPhone: walkinData.phone,
       customerName: walkinData.name,
       hall: '',
@@ -250,8 +329,30 @@ const WashStation = () => {
     setWalkinStep('payment');
   };
 
-  // Process payment
-  const processPayment = async (method: PaymentMethod) => {
+  // Initiate payment with WebAuthn verification
+  const initiatePayment = (method: PaymentMethod) => {
+    if (method === 'hubtel' || method === 'momo') {
+      // Require WebAuthn verification for USSD payments
+      setPendingPaymentMethod(method);
+      setShowVerifyModal(true);
+    } else {
+      // Cash payment - still verify
+      setPendingPaymentMethod(method);
+      setShowVerifyModal(true);
+    }
+  };
+
+  // Process payment after verification
+  const handleVerificationSuccess = (staffId: string, staffName: string, timestamp: string) => {
+    setShowVerifyModal(false);
+    
+    if (completedOrder && pendingPaymentMethod) {
+      processPaymentWithAttribution(pendingPaymentMethod, staffId, staffName, timestamp);
+    }
+  };
+
+  // Process payment with attendant attribution
+  const processPaymentWithAttribution = (method: PaymentMethod, staffId: string, staffName: string, timestamp: string) => {
     if (completedOrder) {
       if (method === 'hubtel' || method === 'momo') {
         toast.success(`USSD prompt sent to ${completedOrder.customerPhone}`, {
@@ -259,18 +360,49 @@ const WashStation = () => {
         });
       }
 
+      // Store transaction with attendant attribution
+      const transaction = {
+        orderId: completedOrder.id,
+        orderCode: completedOrder.code,
+        amount: completedOrder.totalPrice,
+        paymentMethod: method,
+        staffId,
+        staffName,
+        verifiedAt: timestamp,
+        customerPhone: completedOrder.customerPhone,
+        customerName: completedOrder.customerName,
+        createdAt: new Date().toISOString()
+      };
+
+      // Save transaction history
+      const transactions = JSON.parse(localStorage.getItem('washlab_transactions') || '[]');
+      transactions.push(transaction);
+      localStorage.setItem('washlab_transactions', JSON.stringify(transactions));
+
       updateOrder(completedOrder.id, {
         paymentMethod: method,
         paymentStatus: 'paid',
         paidAt: new Date(),
         paidAmount: completedOrder.totalPrice || 0,
-        processedBy: signedInStaff[0]?.name || 'Unknown',
+        processedBy: staffName,
       });
 
+      // Update customer stats
+      incrementOrderStats(completedOrder.customerPhone, completedOrder.totalPrice || 0);
+
       setCompletedOrder(prev => prev ? { ...prev, paymentMethod: method, paymentStatus: 'paid' } : null);
+      setReceiptAttendant(staffName);
+      
       toast.success('Payment recorded successfully!');
-      setWalkinStep('confirmation');
+      
+      // Show receipt
+      setShowReceipt(true);
     }
+  };
+
+  const handleReceiptClose = () => {
+    setShowReceipt(false);
+    setWalkinStep('confirmation');
   };
 
   const sendWhatsAppReceipt = (order: Order) => {
@@ -306,13 +438,16 @@ const WashStation = () => {
     });
   };
 
-  // Header Component
+  // Header Component - Logo goes to dashboard when logged in
   const Header = () => (
     <header className="bg-background border-b border-border px-6 py-4 flex items-center justify-between">
       <div className="flex items-center gap-4">
-        <Link to="/washstation" className="flex items-center gap-2">
+        <button 
+          onClick={() => setMainView('dashboard')}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+        >
           <img src={washLabLogo} alt="WashLab" className="h-8 w-auto" />
-        </Link>
+        </button>
         <div className="h-6 w-px bg-border" />
         <span className="text-sm font-medium text-muted-foreground">{branchName}</span>
       </div>
@@ -671,7 +806,7 @@ const WashStation = () => {
     </div>
   );
 
-  // Phone Entry Screen (Figma style)
+  // Phone Entry Screen - Step 1: Phone First
   const PhoneScreen = () => {
     const formatPhone = (phone: string) => {
       const cleaned = phone.replace(/\D/g, '');
@@ -712,29 +847,12 @@ const WashStation = () => {
                     </div>
                   </div>
 
-                  {/* Customer Status */}
-                  <div className="bg-muted/50 rounded-xl p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <User className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-foreground">New Customer</p>
-                      <p className="text-sm text-muted-foreground">This number is not in our system. A new profile will be created.</p>
-                    </div>
-                    <span className="px-3 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-full">NEW</span>
-                  </div>
-
                   <Button
-                    onClick={() => {
-                      if (walkinData.phone.length >= 9) {
-                        setWalkinData(prev => ({ ...prev, name: 'John Doe' }));
-                        setWalkinStep('order');
-                      }
-                    }}
+                    onClick={checkPhoneNumber}
                     disabled={walkinData.phone.length < 9}
                     className="w-full h-14 mt-6 text-lg rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
                   >
-                    Create Profile & Continue
+                    Check Number
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>
                 </div>
@@ -755,9 +873,69 @@ const WashStation = () => {
     );
   };
 
-  // Order Details Screen (Figma style)
+  // Name Entry Screen - Step 2: Only for new customers
+  const NameScreen = () => (
+    <div className="min-h-screen bg-gradient-to-br from-primary via-primary/80 to-wash-blue-light relative">
+      <Header />
+      
+      <div className="p-6">
+        <div className="max-w-lg mx-auto">
+          <div className="bg-white/95 backdrop-blur-sm rounded-3xl p-8 shadow-xl">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <UserCheck className="w-8 h-8 text-primary" />
+              </div>
+              <h1 className="text-2xl font-bold text-foreground mb-2">New Customer</h1>
+              <p className="text-muted-foreground">
+                This number is not in our system. Please enter the customer's name.
+              </p>
+            </div>
+
+            <div className="bg-muted/50 rounded-xl p-4 mb-6 flex items-center gap-3">
+              <Phone className="w-5 h-5 text-primary" />
+              <span className="text-foreground font-medium">+233 {walkinData.phone}</span>
+              <span className="ml-auto px-2 py-1 bg-primary/10 text-primary text-xs font-semibold rounded">NEW</span>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground mb-2 block">CUSTOMER NAME</Label>
+                <Input
+                  value={walkinData.name}
+                  onChange={(e) => setWalkinData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter full name"
+                  className="h-14 text-lg rounded-xl"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button 
+                  variant="outline"
+                  onClick={() => setWalkinStep('phone')}
+                  className="flex-1 h-12 rounded-xl"
+                >
+                  Back
+                </Button>
+                <Button
+                  onClick={createNewCustomerAndProceed}
+                  disabled={!walkinData.name.trim()}
+                  className="flex-1 h-12 rounded-xl bg-primary hover:bg-primary/90"
+                >
+                  Create & Continue
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Order Details Screen - Order ID is stable
   const OrderScreen = () => {
-    const orderCode = `ORD-${Math.floor(Math.random() * 9000) + 1000}`;
+    const orderCode = getCurrentOrderId(); // Use stable order ID
     const currentDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
     return (
@@ -773,7 +951,7 @@ const WashStation = () => {
                   <h1 className="text-2xl font-bold text-primary-foreground">Order #{orderCode}</h1>
                   <span className="px-3 py-1 bg-primary-foreground/20 text-primary-foreground text-xs font-semibold rounded-full">WALK-IN</span>
                 </div>
-                <p className="text-primary-foreground/80">Customer: {walkinData.name || 'John Doe'}</p>
+                <p className="text-primary-foreground/80">Customer: {walkinData.name}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-primary-foreground/60">CURRENT DATE</p>
@@ -934,8 +1112,8 @@ const WashStation = () => {
             <div className="max-w-5xl mx-auto flex items-center justify-between">
               <div className="flex items-center gap-8 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Total Number of Toiletries</span>
-                  <p className="font-bold text-lg">2</p>
+                  <span className="text-muted-foreground">Order ID</span>
+                  <p className="font-bold text-lg">{orderCode}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Estimated Total</span>
@@ -965,10 +1143,9 @@ const WashStation = () => {
     );
   };
 
-  // Delivery Selection Screen (Figma style)
+  // Delivery Selection Screen
   const DeliveryScreen = () => (
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-100 relative">
-      {/* Background Image */}
       <div className="absolute inset-0 opacity-20">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1519003722824-194d4455a60c?w=1920')] bg-cover bg-center" />
       </div>
@@ -1101,10 +1278,11 @@ const WashStation = () => {
     </div>
   );
 
-  // Order Summary Screen (Figma style)
+  // Order Summary Screen
   const SummaryScreen = () => {
     const { subtotal, tax, serviceFee, deliveryFee, total } = calculatePrice();
     const service = serviceTypes.find(s => s.id === walkinData.serviceType);
+    const orderCode = getCurrentOrderId();
 
     return (
       <div className="min-h-screen bg-background">
@@ -1135,7 +1313,7 @@ const WashStation = () => {
                     <User className="w-6 h-6 text-primary-foreground" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-semibold text-foreground">{walkinData.name || 'Jane Doe'}</p>
+                    <p className="font-semibold text-foreground">{walkinData.name}</p>
                     <p className="text-sm text-muted-foreground">+233 {walkinData.phone}</p>
                     <span className="text-xs text-primary">Loyalty Member</span>
                   </div>
@@ -1158,41 +1336,38 @@ const WashStation = () => {
                       </div>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">NOTES</p>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-primary" />
-                      <div>
-                        <p className="font-semibold text-foreground">Special Instructions</p>
-                        <p className="text-sm text-muted-foreground">{walkinData.notes || 'No bleach, cold wash only for delicates.'}</p>
+                  {walkinData.notes && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">NOTES</p>
+                      <p className="text-sm text-foreground">{walkinData.notes}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Order Details */}
+                <div className="bg-muted/30 rounded-xl p-4 mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="font-semibold text-foreground">Order #{orderCode}</p>
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">WALK-IN</span>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center">
+                          <Droplets className="w-4 h-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-foreground">{service?.label}</p>
+                          <p className="text-xs text-muted-foreground">{walkinData.weight}kg • {walkinData.itemCount} items</p>
+                        </div>
                       </div>
+                      <span className="font-semibold">₵{subtotal.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Service Items */}
-                <div className="border-t border-border pt-4 mb-6">
-                  <div className="grid grid-cols-4 gap-4 text-xs text-muted-foreground mb-3">
-                    <span>SERVICE / ITEM</span>
-                    <span>DETAILS</span>
-                    <span></span>
-                    <span className="text-right">PRICE</span>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-4 gap-4 items-center">
-                      <div>
-                        <p className="font-semibold text-foreground">{service?.label}</p>
-                        <p className="text-xs text-muted-foreground">General clothing</p>
-                      </div>
-                      <span className="text-sm text-muted-foreground">{walkinData.weight}kg × ₵{serviceTypes.find(s => s.id === walkinData.serviceType)?.price || 50}/5kg</span>
-                      <span></span>
-                      <span className="font-semibold text-right">₵{subtotal.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Pricing Breakdown */}
-                <div className="space-y-2 border-t border-border pt-4">
+                {/* Price Breakdown */}
+                <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span className="text-foreground">₵{subtotal.toFixed(2)}</span>
@@ -1242,7 +1417,7 @@ const WashStation = () => {
     );
   };
 
-  // Payment Screen (Figma style)
+  // Payment Screen - with WebAuthn verification
   const PaymentScreen = () => {
     const { subtotal, tax, serviceFee, deliveryFee, total } = calculatePrice();
     const service = serviceTypes.find(s => s.id === walkinData.serviceType);
@@ -1262,9 +1437,8 @@ const WashStation = () => {
                     <User className="w-5 h-5 text-primary-foreground" />
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground">{walkinData.name || 'Alice Smith'}</p>
+                    <p className="font-semibold text-foreground">{walkinData.name}</p>
                     <p className="text-sm text-muted-foreground">+233 {walkinData.phone}</p>
-                    <p className="text-xs text-primary">{walkinData.name || 'alice.smith'}@gmail.com</p>
                   </div>
                 </div>
               </div>
@@ -1323,7 +1497,6 @@ const WashStation = () => {
                       }`}
                     >
                       <Smartphone className={`w-6 h-6 mx-auto mb-2 ${paymentMethod === 'mobile_money' ? 'text-background' : 'text-muted-foreground'}`} />
-                      {paymentMethod === 'mobile_money' && <Check className="w-4 h-4 absolute top-2 right-2" />}
                       <p className={`font-semibold text-sm ${paymentMethod === 'mobile_money' ? 'text-background' : 'text-foreground'}`}>
                         Mobile Money
                       </p>
@@ -1343,14 +1516,16 @@ const WashStation = () => {
                     </button>
                     <button
                       onClick={() => setPaymentMethod('cash')}
-                      className={`p-4 rounded-xl border-2 transition-all opacity-50 cursor-not-allowed ${
+                      className={`p-4 rounded-xl border-2 transition-all ${
                         paymentMethod === 'cash' 
                           ? 'border-foreground bg-foreground text-background' 
-                          : 'border-border'
+                          : 'border-border hover:border-muted-foreground'
                       }`}
                     >
-                      <Banknote className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-                      <p className="font-semibold text-sm text-muted-foreground">Cash</p>
+                      <Banknote className={`w-6 h-6 mx-auto mb-2 ${paymentMethod === 'cash' ? 'text-background' : 'text-muted-foreground'}`} />
+                      <p className={`font-semibold text-sm ${paymentMethod === 'cash' ? 'text-background' : 'text-foreground'}`}>
+                        Cash
+                      </p>
                     </button>
                   </div>
                 </div>
@@ -1394,15 +1569,54 @@ const WashStation = () => {
                         />
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">Check provider format before sending request.</p>
-                      <button className="text-xs text-destructive mt-1">⚠ Verify number with customer</button>
                     </div>
 
                     <Button
-                      onClick={() => processPayment('momo')}
+                      onClick={() => initiatePayment('momo')}
                       className="mt-4 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-6"
                     >
-                      <Smartphone className="w-4 h-4 mr-2" />
-                      Request Payment
+                      <Fingerprint className="w-4 h-4 mr-2" />
+                      Verify & Request Payment
+                    </Button>
+                  </div>
+                )}
+
+                {/* Cash Payment */}
+                {paymentMethod === 'cash' && (
+                  <div className="bg-muted/50 rounded-xl p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Banknote className="w-5 h-5 text-foreground" />
+                      <span className="font-semibold text-foreground">Cash Payment</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Collect ₵{total.toFixed(2)} from customer and verify your identity to record the transaction.
+                    </p>
+                    <Button
+                      onClick={() => initiatePayment('cash')}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-6"
+                    >
+                      <Fingerprint className="w-4 h-4 mr-2" />
+                      Verify & Record Payment
+                    </Button>
+                  </div>
+                )}
+
+                {/* Card Payment */}
+                {paymentMethod === 'card' && (
+                  <div className="bg-muted/50 rounded-xl p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <CreditCard className="w-5 h-5 text-foreground" />
+                      <span className="font-semibold text-foreground">Card Payment</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Process card payment of ₵{total.toFixed(2)} via Paystack.
+                    </p>
+                    <Button
+                      onClick={() => initiatePayment('hubtel')}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-6"
+                    >
+                      <Fingerprint className="w-4 h-4 mr-2" />
+                      Verify & Process Payment
                     </Button>
                   </div>
                 )}
@@ -1410,19 +1624,9 @@ const WashStation = () => {
                 {/* Order Warning */}
                 <div className="flex items-center gap-2 mt-6 text-sm text-muted-foreground">
                   <AlertCircle className="w-4 h-4" />
-                  <span>Order cannot be finalized until payment is confirmed.</span>
+                  <span>Payment requires biometric verification for security.</span>
                 </div>
               </div>
-
-              {/* Finalize Button */}
-              <Button
-                onClick={() => processPayment(paymentMethod === 'mobile_money' ? 'momo' : paymentMethod === 'card' ? 'hubtel' : 'cash')}
-                className="w-full h-14 bg-muted hover:bg-muted/80 text-foreground rounded-xl text-lg font-semibold"
-                disabled={!completedOrder}
-              >
-                Finalize Order
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
             </div>
           </div>
 
@@ -1431,11 +1635,30 @@ const WashStation = () => {
             <img src={stackedClothes} alt="" className="w-full" />
           </div>
         </div>
+
+        {/* WebAuthn Verification Modal */}
+        <WebAuthnVerifyModal
+          isOpen={showVerifyModal}
+          onClose={() => setShowVerifyModal(false)}
+          onSuccess={handleVerificationSuccess}
+          orderId={completedOrder?.code}
+          action="Payment Authorization"
+        />
+
+        {/* Transaction Receipt */}
+        {completedOrder && (
+          <TransactionReceipt
+            isOpen={showReceipt}
+            onClose={handleReceiptClose}
+            order={completedOrder}
+            attendantName={receiptAttendant}
+          />
+        )}
       </div>
     );
   };
 
-  // Confirmation Screen (Figma style)
+  // Confirmation Screen
   const ConfirmationScreen = () => (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
@@ -1502,7 +1725,7 @@ const WashStation = () => {
               className="w-full h-12 rounded-xl"
             >
               <Smartphone className="w-4 h-4 mr-2" />
-              Print Receipt
+              Send WhatsApp Receipt
             </Button>
           </div>
 
@@ -1549,6 +1772,7 @@ const WashStation = () => {
   if (mainView === 'walkin') {
     switch (walkinStep) {
       case 'phone': return <PhoneScreen />;
+      case 'name': return <NameScreen />;
       case 'order': return <OrderScreen />;
       case 'delivery': return <DeliveryScreen />;
       case 'summary': return <SummaryScreen />;

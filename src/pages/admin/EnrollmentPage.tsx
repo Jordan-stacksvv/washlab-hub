@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useWebAuthn } from '@/hooks/useWebAuthn';
 import { Logo } from '@/components/Logo';
 import { toast } from 'sonner';
@@ -14,9 +13,10 @@ import {
   Loader2,
   Smartphone,
   Shield,
-  AlertTriangle
+  AlertTriangle,
+  Lock
 } from 'lucide-react';
-import { getActiveBranches } from '@/config/branches';
+import { getActiveBranches, getBranchById } from '@/config/branches';
 
 // ============================================
 // KILL SWITCH - Set to false to disable enrollment
@@ -30,6 +30,7 @@ const PREVIEW_MODE = true;
 
 // Local storage key for enrolled staff
 const ENROLLED_STAFF_KEY = 'washlab_enrolled_staff';
+const PENDING_ENROLLMENTS_KEY = 'washlab_pending_enrollments';
 
 interface EnrolledStaffData {
   staffId: string;
@@ -37,12 +38,20 @@ interface EnrolledStaffData {
   phone: string;
   role: string;
   branch: string;
+  branchName: string;
   enrolledAt: string;
   token: string;
 }
 
-// Use centralized branch config
-const DEMO_BRANCHES = getActiveBranches().map(b => ({ id: b.id, name: b.name }));
+interface PendingEnrollment {
+  token: string;
+  role: string;
+  roleLabel: string;
+  branch: string;
+  branchName: string;
+  createdAt: string;
+  createdBy: string;
+}
 
 // Demo roles
 const STAFF_ROLES = [
@@ -54,17 +63,27 @@ const STAFF_ROLES = [
   { id: 'attendant', name: 'Attendant' },
 ];
 
-// Fake token validation (always returns true in preview mode)
-const validateToken = (token: string): { valid: boolean; staffName?: string } => {
-  // In production, this would be an API call
+// Token validation - checks pending enrollments
+const validateToken = (token: string): { valid: boolean; enrollment?: PendingEnrollment } => {
   if (PREVIEW_MODE) {
-    // Extract name from token format: name-timestamp
-    const parts = token.split('-');
-    if (parts.length >= 2) {
-      const name = parts.slice(0, -1).join(' ').replace(/_/g, ' ');
-      return { valid: true, staffName: name.charAt(0).toUpperCase() + name.slice(1) };
+    // Check for pending enrollment data
+    try {
+      const pending = localStorage.getItem(PENDING_ENROLLMENTS_KEY);
+      if (pending) {
+        const enrollments: PendingEnrollment[] = JSON.parse(pending);
+        const found = enrollments.find(e => e.token === token);
+        if (found) {
+          return { valid: true, enrollment: found };
+        }
+      }
+    } catch (e) {
+      console.error('Error reading pending enrollments:', e);
     }
-    return { valid: true };
+    
+    // Fallback for demo tokens
+    if (token.includes('-')) {
+      return { valid: true };
+    }
   }
   return { valid: false };
 };
@@ -76,6 +95,14 @@ const storeEnrollmentData = (data: EnrolledStaffData) => {
     const enrolledStaff: EnrolledStaffData[] = existing ? JSON.parse(existing) : [];
     enrolledStaff.push(data);
     localStorage.setItem(ENROLLED_STAFF_KEY, JSON.stringify(enrolledStaff));
+    
+    // Remove from pending enrollments
+    const pending = localStorage.getItem(PENDING_ENROLLMENTS_KEY);
+    if (pending) {
+      const enrollments: PendingEnrollment[] = JSON.parse(pending);
+      const updated = enrollments.filter(e => e.token !== data.token);
+      localStorage.setItem(PENDING_ENROLLMENTS_KEY, JSON.stringify(updated));
+    }
   } catch (e) {
     console.error('Failed to store enrollment data:', e);
   }
@@ -83,13 +110,20 @@ const storeEnrollmentData = (data: EnrolledStaffData) => {
 
 const EnrollmentPage = () => {
   const { token } = useParams<{ token: string }>();
+  const [searchParams] = useSearchParams();
   const { isSupported, isProcessing, enrollStaff, isStaffEnrolled } = useWebAuthn();
   
   const [step, setStep] = useState<'disabled' | 'invalid' | 'welcome' | 'enroll' | 'success' | 'error'>('welcome');
   const [staffName, setStaffName] = useState('');
   const [staffPhone, setStaffPhone] = useState('');
+  
+  // Role and Branch are set by admin - locked for staff
   const [staffRole, setStaffRole] = useState('');
+  const [staffRoleLabel, setStaffRoleLabel] = useState('');
   const [staffBranch, setStaffBranch] = useState('');
+  const [staffBranchName, setStaffBranchName] = useState('');
+  const [roleLockedByAdmin, setRoleLockedByAdmin] = useState(false);
+  
   const [errorMessage, setErrorMessage] = useState('');
   const [tokenValid, setTokenValid] = useState(false);
 
@@ -112,22 +146,49 @@ const EnrollmentPage = () => {
     }
 
     setTokenValid(true);
-    if (validation.staffName) {
-      setStaffName(validation.staffName);
+    
+    // If enrollment data exists from admin, lock the role and branch
+    if (validation.enrollment) {
+      setStaffRole(validation.enrollment.role);
+      setStaffRoleLabel(validation.enrollment.roleLabel);
+      setStaffBranch(validation.enrollment.branch);
+      setStaffBranchName(validation.enrollment.branchName);
+      setRoleLockedByAdmin(true);
+    } else {
+      // Fallback for demo: check URL params
+      const roleParam = searchParams.get('role');
+      const branchParam = searchParams.get('branch');
+      
+      if (roleParam) {
+        setStaffRole(roleParam);
+        const roleObj = STAFF_ROLES.find(r => r.id === roleParam);
+        setStaffRoleLabel(roleObj?.name || roleParam);
+        setRoleLockedByAdmin(true);
+      }
+      
+      if (branchParam) {
+        setStaffBranch(branchParam);
+        const branchObj = getBranchById(branchParam);
+        setStaffBranchName(branchObj?.name || branchParam);
+      }
     }
-  }, [token]);
+  }, [token, searchParams]);
 
   const handleStartEnrollment = () => {
     if (!staffName.trim()) {
       toast.error('Please enter your name');
       return;
     }
+    if (!staffPhone.trim()) {
+      toast.error('Please enter your phone number');
+      return;
+    }
     if (!staffRole) {
-      toast.error('Please select your role');
+      toast.error('Role not assigned. Please contact admin.');
       return;
     }
     if (!staffBranch) {
-      toast.error('Please select your branch');
+      toast.error('Branch not assigned. Please contact admin.');
       return;
     }
     setStep('enroll');
@@ -159,6 +220,7 @@ const EnrollmentPage = () => {
         phone: staffPhone,
         role: staffRole,
         branch: staffBranch,
+        branchName: staffBranchName,
         enrolledAt: new Date().toISOString(),
         token: token || '',
       };
@@ -246,9 +308,29 @@ const EnrollmentPage = () => {
                 Complete your biometric enrollment to start using WashStation
               </p>
 
+              {/* Admin-assigned Role and Branch - Locked */}
+              {roleLockedByAdmin && (
+                <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 mb-6 text-left">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Lock className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium text-primary">Assigned by Admin</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Role</p>
+                      <p className="font-semibold text-foreground">{staffRoleLabel}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Branch</p>
+                      <p className="font-semibold text-foreground">{staffBranchName}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-4 text-left mb-6">
                 <div>
-                  <Label>Your Name *</Label>
+                  <Label>Your Full Name *</Label>
                   <Input
                     value={staffName}
                     onChange={(e) => setStaffName(e.target.value)}
@@ -258,7 +340,7 @@ const EnrollmentPage = () => {
                 </div>
                 
                 <div>
-                  <Label>Phone Number</Label>
+                  <Label>Phone Number *</Label>
                   <Input
                     value={staffPhone}
                     onChange={(e) => setStaffPhone(e.target.value)}
@@ -266,48 +348,23 @@ const EnrollmentPage = () => {
                     className="mt-1"
                   />
                 </div>
-
-                <div>
-                  <Label>Role *</Label>
-                  <Select value={staffRole} onValueChange={setStaffRole}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select your role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STAFF_ROLES.map((role) => (
-                        <SelectItem key={role.id} value={role.id}>
-                          {role.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>Branch *</Label>
-                  <Select value={staffBranch} onValueChange={setStaffBranch}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select your branch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DEMO_BRANCHES.map((branch) => (
-                        <SelectItem key={branch.id} value={branch.id}>
-                          {branch.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
 
               <Button 
                 onClick={handleStartEnrollment}
                 className="w-full h-12 text-lg rounded-xl"
+                disabled={!roleLockedByAdmin}
               >
                 Continue to Enrollment
               </Button>
 
-              {PREVIEW_MODE && (
+              {!roleLockedByAdmin && (
+                <p className="text-xs text-red-600 mt-4 bg-red-50 p-2 rounded">
+                  Role and Branch must be assigned by Admin before enrollment
+                </p>
+              )}
+
+              {PREVIEW_MODE && roleLockedByAdmin && (
                 <p className="text-xs text-yellow-600 mt-4 bg-yellow-50 p-2 rounded">
                   Preview Mode: Token validation bypassed
                 </p>
@@ -332,8 +389,8 @@ const EnrollmentPage = () => {
               <div className="bg-muted/50 rounded-xl p-6 mb-6 text-left">
                 <p className="font-semibold text-foreground mb-3">{staffName}</p>
                 <div className="space-y-1 text-sm text-muted-foreground">
-                  <p>Role: {STAFF_ROLES.find(r => r.id === staffRole)?.name}</p>
-                  <p>Branch: {DEMO_BRANCHES.find(b => b.id === staffBranch)?.name}</p>
+                  <p>Role: {staffRoleLabel}</p>
+                  <p>Branch: {staffBranchName}</p>
                   {staffPhone && <p>Phone: {staffPhone}</p>}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground mt-3 pt-3 border-t border-border">

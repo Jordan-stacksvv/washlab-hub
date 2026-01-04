@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/ui';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,15 @@ const BranchEntry = () => {
   const [branchCode, setBranchCode] = useState('');
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const activeBranches = getActiveBranches();
+
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    const activeStaff = sessionStorage.getItem('washlab_active_staff');
+    const branch = sessionStorage.getItem('washlab_branch');
+    if (activeStaff && branch) {
+      navigate('/washstation/dashboard');
+    }
+  }, [navigate]);
 
   const handleCodeChange = (code: string) => {
     const upperCode = code.toUpperCase();
