@@ -17,7 +17,12 @@ import BranchEntry from "@/washstation-app/pages/BranchEntry";
 import FaceScan from "@/washstation-app/pages/FaceScan";
 import ConfirmClockIn from "@/washstation-app/pages/ConfirmClockIn";
 import ShiftManagement from "@/washstation-app/pages/ShiftManagement";
-import WashStationDashboard from "@/washstation-app/pages/Dashboard";
+import POSDashboard from "@/washstation-app/pages/POSDashboard";
+import NewOrder from "@/washstation-app/pages/NewOrder";
+import Orders from "@/washstation-app/pages/Orders";
+import Customers from "@/washstation-app/pages/Customers";
+import Inventory from "@/washstation-app/pages/Inventory";
+import WashStationSettings from "@/washstation-app/pages/Settings";
 
 // Admin App Pages
 import AdminLayout from "@/admin-app/AdminLayout";
@@ -60,12 +65,19 @@ const App = () => (
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/account" element={<Account />} />
             
-            {/* WASHSTATION APP - app.washlab.com (tablet only) */}
+            {/* WASHSTATION APP - app.washlab.com (tablet POS) */}
             <Route path="/washstation" element={<BranchEntry />} />
             <Route path="/washstation/scan" element={<FaceScan />} />
             <Route path="/washstation/confirm-clock-in" element={<ConfirmClockIn />} />
             <Route path="/washstation/shift/:shiftId" element={<ShiftManagement />} />
-            <Route path="/washstation/dashboard" element={<WashStationDashboard />} />
+            <Route path="/washstation/shift" element={<ShiftManagement />} />
+            <Route path="/washstation/dashboard" element={<POSDashboard />} />
+            <Route path="/washstation/new-order" element={<NewOrder />} />
+            <Route path="/washstation/orders" element={<Orders />} />
+            <Route path="/washstation/orders/:orderId" element={<Orders />} />
+            <Route path="/washstation/customers" element={<Customers />} />
+            <Route path="/washstation/inventory" element={<Inventory />} />
+            <Route path="/washstation/settings" element={<WashStationSettings />} />
             
             {/* ADMIN APP - admin.washlab.com */}
             {/* Enrollment page - standalone, no layout */}
