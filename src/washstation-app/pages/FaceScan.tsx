@@ -60,14 +60,39 @@ const FaceScan = () => {
     const result = await verifyStaff();
     
     if (result.success && result.staffName) {
+      // Check if staff is already logged in (prevent duplicate login)
+      const existingStaff = sessionStorage.getItem('washlab_active_staff');
+      if (existingStaff) {
+        const activeStaff = JSON.parse(existingStaff);
+        const staffList = Array.isArray(activeStaff) ? activeStaff : [activeStaff];
+        const alreadyLoggedIn = staffList.some((s: any) => s.id === result.staffId || s.staffId === result.staffId);
+        
+        if (alreadyLoggedIn) {
+          setErrorMessage(`${result.staffName} is already signed in. One active shift per staff member.`);
+          setStatus('error');
+          return;
+        }
+      }
+      
       setStaffName(result.staffName);
       setStatus('success');
+      
+      // Get role from enrolled staff data
+      const enrolledData = localStorage.getItem('washlab_enrolled_staff');
+      let staffRole = 'Attendant';
+      if (enrolledData) {
+        const enrolled = JSON.parse(enrolledData);
+        const staffInfo = enrolled.find((e: any) => e.staffId === result.staffId);
+        if (staffInfo?.role) {
+          staffRole = staffInfo.role;
+        }
+      }
       
       // Store pending staff for confirmation page
       sessionStorage.setItem('washstation_pending_staff', JSON.stringify({
         id: result.staffId,
         name: result.staffName,
-        role: 'Attendant'
+        role: staffRole
       }));
 
       // Redirect to confirm clock-in page
