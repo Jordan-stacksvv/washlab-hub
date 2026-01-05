@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, HelpCircle, User } from 'lucide-react';
+import { Bell, User } from 'lucide-react';
 
 interface HeaderProps {
   title: string;
@@ -19,6 +19,33 @@ const WashStationHeader = ({
   pendingCount = 0,
   onNotificationClick 
 }: HeaderProps) => {
+  const [elapsedTime, setElapsedTime] = useState('00:00:00');
+
+  useEffect(() => {
+    // Get clock-in time from session storage
+    const staffData = sessionStorage.getItem('washlab_active_staff');
+    if (!staffData) return;
+
+    const parsed = JSON.parse(staffData);
+    const staff = Array.isArray(parsed) ? parsed[0] : parsed;
+    const clockInTime = staff?.clockInTime ? new Date(staff.clockInTime) : new Date();
+
+    const updateTimer = () => {
+      const now = new Date();
+      const diff = now.getTime() - clockInTime.getTime();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setElapsedTime(
+        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+      );
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <header className="bg-card border-b border-border px-6 py-4 flex items-center justify-between">
       <div className="flex items-center gap-4">
@@ -27,10 +54,10 @@ const WashStationHeader = ({
       </div>
       
       <div className="flex items-center gap-3">
-        {/* Branch Status Timer */}
+        {/* Branch Status Timer - shows elapsed time since clock-in */}
         <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full">
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-sm font-medium text-primary">04:23:12</span>
+          <span className="text-sm font-medium text-primary">{elapsedTime}</span>
         </div>
 
         {/* Notifications */}
@@ -46,7 +73,7 @@ const WashStationHeader = ({
           )}
         </button>
 
-        {/* Staff Avatar */}
+        {/* Staff Avatar - clicks to shift management */}
         {activeStaff && (
           <Link 
             to="/washstation/shift"

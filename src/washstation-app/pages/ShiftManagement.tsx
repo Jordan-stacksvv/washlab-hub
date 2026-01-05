@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import washLabLogo from '@/assets/washlab-logo.png';
@@ -48,12 +48,10 @@ interface Branch {
  */
 const ShiftManagement = () => {
   const navigate = useNavigate();
-  const { shiftId } = useParams();
   const [staffData, setStaffData] = useState<ActiveStaff | null>(null);
   const [branch, setBranch] = useState<Branch | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [shiftNotes, setShiftNotes] = useState('');
-  const [isConfirmingClockOut, setIsConfirmingClockOut] = useState(false);
 
   // Mock shift data
   const [shiftStats] = useState({
@@ -66,17 +64,25 @@ const ShiftManagement = () => {
     const storedBranch = sessionStorage.getItem('washlab_branch');
     
     if (activeStaffData) {
-      const activeStaff: ActiveStaff[] = JSON.parse(activeStaffData);
-      // Match by shiftId or by id (since dashboard links by staff.id)
-      const staff = activeStaff.find(s => s.shiftId === shiftId || s.id === shiftId);
+      const parsed = JSON.parse(activeStaffData);
+      // Get current staff - either first in array or the object itself
+      const staff = Array.isArray(parsed) ? parsed[0] : parsed;
       if (staff) {
-        setStaffData(staff);
+        setStaffData({
+          id: staff.id,
+          name: staff.name,
+          role: staff.role || 'Attendant',
+          clockInTime: staff.clockInTime || staff.signedInAt || new Date().toISOString(),
+          shiftId: staff.shiftId || `SH-${Math.floor(Math.random() * 90000) + 10000}`,
+          onBreak: staff.onBreak,
+          breakStartTime: staff.breakStartTime
+        });
       } else {
-        navigate('/washstation/dashboard');
+        navigate('/washstation');
         return;
       }
     } else {
-      navigate('/washstation/dashboard');
+      navigate('/washstation');
       return;
     }
     
@@ -86,7 +92,7 @@ const ShiftManagement = () => {
 
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
-  }, [navigate, shiftId]);
+  }, [navigate]);
 
   const calculateDuration = () => {
     if (!staffData) return '0h 0m';
@@ -100,13 +106,8 @@ const ShiftManagement = () => {
   const handleClockOut = () => {
     if (!staffData) return;
 
-    // Remove from active staff
-    const activeStaffData = sessionStorage.getItem('washlab_active_staff');
-    if (activeStaffData) {
-      const activeStaff: ActiveStaff[] = JSON.parse(activeStaffData);
-      const updatedStaff = activeStaff.filter(s => s.id !== staffData.id);
-      sessionStorage.setItem('washlab_active_staff', JSON.stringify(updatedStaff));
-    }
+    // Clear active staff
+    sessionStorage.removeItem('washlab_active_staff');
 
     // Record clock out in attendance log
     const attendanceLog = JSON.parse(localStorage.getItem('washlab_attendance_log') || '[]');
@@ -123,11 +124,11 @@ const ShiftManagement = () => {
     });
     localStorage.setItem('washlab_attendance_log', JSON.stringify(attendanceLog));
 
-    // Trigger storage event for dashboard to update
-    window.dispatchEvent(new Event('storage'));
+    // Clear branch and go back to login
+    sessionStorage.removeItem('washlab_branch');
 
     toast.success(`${staffData.name} clocked out successfully`);
-    navigate('/washstation/dashboard');
+    navigate('/washstation');
   };
 
   const handleBreakToggle = () => {

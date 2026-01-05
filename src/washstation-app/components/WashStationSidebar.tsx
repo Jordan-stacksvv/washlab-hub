@@ -1,12 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
-  Plus, 
   ClipboardList, 
   Users, 
   Package, 
   Settings,
-  LogOut
+  LogOut,
+  Globe
 } from 'lucide-react';
 import washLabLogo from '@/assets/washlab-logo.png';
 
@@ -19,11 +19,12 @@ interface SidebarProps {
 const WashStationSidebar = ({ activeStaff, branchName = 'Central Branch', onLogout }: SidebarProps) => {
   const location = useLocation();
   
+  // Removed "New Order" from sidebar - only on Dashboard as action card
+  // Merged Active Orders and Online Orders into one "Active Orders" entry
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/washstation/dashboard' },
-    { id: 'new-order', label: 'New Order', icon: Plus, path: '/washstation/new-order' },
     { id: 'orders', label: 'Active Orders', icon: ClipboardList, path: '/washstation/orders' },
-    { id: 'online-orders', label: 'Online Orders', icon: ClipboardList, path: '/washstation/online-orders' },
+    { id: 'online-orders', label: 'Online Orders', icon: Globe, path: '/washstation/online-orders' },
     { id: 'customers', label: 'Customers', icon: Users, path: '/washstation/customers' },
     { id: 'inventory', label: 'Inventory', icon: Package, path: '/washstation/inventory' },
   ];
@@ -34,7 +35,7 @@ const WashStationSidebar = ({ activeStaff, branchName = 'Central Branch', onLogo
 
   return (
     <aside className="w-64 bg-card border-r border-border flex flex-col h-screen fixed left-0 top-0 z-40">
-      {/* Logo */}
+      {/* Logo - Always navigates to Dashboard */}
       <div className="p-4 border-b border-border">
         <Link to="/washstation/dashboard" className="flex items-center gap-3">
           <img src={washLabLogo} alt="WashLab" className="h-10 w-auto" />
@@ -83,13 +84,16 @@ const WashStationSidebar = ({ activeStaff, branchName = 'Central Branch', onLogo
         </Link>
       </div>
 
-      {/* Staff Info */}
+      {/* Staff Info with logout to shift page */}
       {activeStaff && (
         <div className="p-4 border-t border-border">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+            <Link 
+              to="/washstation/shift"
+              className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold hover:bg-primary/20 transition-colors"
+            >
               {activeStaff.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-            </div>
+            </Link>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-foreground text-sm truncate">{activeStaff.name}</p>
               <p className="text-xs text-muted-foreground">{activeStaff.role}</p>

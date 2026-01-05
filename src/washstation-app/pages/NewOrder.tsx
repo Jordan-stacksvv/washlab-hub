@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import WashStationSidebar from '../components/WashStationSidebar';
 import WashStationHeader from '../components/WashStationHeader';
 import { useCustomers } from '@/hooks/useCustomers';
-import { useOrderId } from '@/hooks/useOrderId';
 import { useOrders } from '@/context/OrderContext';
 import { PRICING_CONFIG, calculateTotalPrice } from '@/config/pricing';
 import washingMachine from '@/assets/laundry-hero-1.jpg';
@@ -30,7 +29,6 @@ type Step = 'phone' | 'customer-found' | 'register' | 'order';
 const NewOrder = () => {
   const navigate = useNavigate();
   const { findByPhone, createCustomer } = useCustomers();
-  const { generateOrderId, getCurrentOrderId, resetOrderId } = useOrderId();
   const { addOrder } = useOrders();
   
   const [activeStaff, setActiveStaff] = useState<{ name: string; role: string } | null>(null);
@@ -51,6 +49,9 @@ const NewOrder = () => {
   const [itemCount, setItemCount] = useState(0);
   const [orderNotes, setOrderNotes] = useState<string[]>([]);
   const [customNote, setCustomNote] = useState('');
+  
+  // ORDER ID - Generated ONCE at mount, NEVER changes
+  const [orderId] = useState(() => `ORD-${Math.floor(Math.random() * 9000) + 1000}`);
 
   const quickNotes = ['Rush Service', 'Stains', 'Delicate', 'No Softener'];
 
@@ -69,10 +70,7 @@ const NewOrder = () => {
     
     const branch = JSON.parse(branchData);
     setBranchName(branch.name || 'Central Branch');
-    
-    // Generate order ID
-    generateOrderId();
-  }, [navigate, generateOrderId]);
+  }, [navigate]);
 
   const handleLogout = () => {
     sessionStorage.removeItem('washlab_active_staff');
@@ -114,7 +112,7 @@ const NewOrder = () => {
     const pricing = calculateTotalPrice(serviceType, weight, false);
     
     const order = addOrder({
-      code: getCurrentOrderId(),
+      code: orderId, // Use the stable orderId that was generated once
       customerPhone: phone,
       customerName: foundCustomer?.name || newName,
       hall: '',
@@ -153,7 +151,6 @@ const NewOrder = () => {
   const rushFee = orderNotes.includes('Rush Service') ? 5 : 0;
   const service = PRICING_CONFIG.services.find(s => s.id === serviceType);
   const pricePerUnit = service?.price || 50;
-  const orderId = getCurrentOrderId();
 
   const services = [
     { id: 'wash_and_dry', name: 'Wash & Dry', price: '$1.50 / kg', image: washingMachine },
