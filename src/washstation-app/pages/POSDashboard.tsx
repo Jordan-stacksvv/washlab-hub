@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import WashStationSidebar from '../components/WashStationSidebar';
 import WashStationHeader from '../components/WashStationHeader';
 import { useOrders } from '@/context/OrderContext';
@@ -11,9 +10,7 @@ import {
   Smartphone,
   Package,
   CheckCircle,
-  Clock,
   User,
-  Search,
   ArrowRight,
   Globe
 } from 'lucide-react';
@@ -24,13 +21,13 @@ const POSDashboard = () => {
   const { orders, getPendingOrders } = useOrders();
   const [activeStaff, setActiveStaff] = useState<{ name: string; role: string } | null>(null);
   const [branchName, setBranchName] = useState('Central Branch');
-  const [searchQuery, setSearchQuery] = useState('');
   const prevOrderCountRef = useRef(orders.length);
 
   useEffect(() => {
     const staffData = sessionStorage.getItem('washlab_active_staff');
     const branchData = sessionStorage.getItem('washlab_branch');
     
+    // Do NOT redirect to login if session exists - stay on dashboard
     if (!staffData || !branchData) {
       navigate('/washstation');
       return;
@@ -57,8 +54,8 @@ const POSDashboard = () => {
   }, [orders]);
 
   const handleLogout = () => {
-    sessionStorage.removeItem('washlab_active_staff');
-    navigate('/washstation');
+    // Navigate to shift management for proper clock-out flow
+    navigate('/washstation/shift');
   };
 
   const pendingOrders = getPendingOrders();
@@ -96,7 +93,7 @@ const POSDashboard = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen w-full bg-background">
       <WashStationSidebar 
         activeStaff={activeStaff} 
         branchName={branchName}
@@ -157,7 +154,7 @@ const POSDashboard = () => {
             </div>
           </div>
 
-          {/* Action Cards */}
+          {/* Action Cards - "Start New Walk-in Order" ONLY exists here */}
           <div className="grid grid-cols-3 gap-6 mb-6">
             {/* Start New Walk-in Order */}
             <button 
@@ -185,7 +182,7 @@ const POSDashboard = () => {
 
             {/* Online Orders */}
             <button 
-              onClick={() => navigate('/washstation/orders')}
+              onClick={() => navigate('/washstation/online-orders')}
               className="bg-card border border-border rounded-2xl p-8 text-left hover:bg-muted/50 transition-colors group relative"
             >
               {pendingOrders.length > 0 && (
