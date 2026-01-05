@@ -61,11 +61,6 @@ const Inventory = () => {
     setBranchName(branch.name || 'Central Branch');
   }, [navigate]);
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('washlab_active_staff');
-    navigate('/washstation');
-  };
-
   const handleRefresh = () => {
     setLastChecked(new Date());
     toast.success('Inventory refreshed');
@@ -110,7 +105,6 @@ const Inventory = () => {
       <WashStationSidebar 
         activeStaff={activeStaff} 
         branchName={branchName}
-        onLogout={handleLogout}
       />
       
       <main className="flex-1 ml-64">

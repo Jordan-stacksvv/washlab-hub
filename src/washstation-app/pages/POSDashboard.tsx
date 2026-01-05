@@ -97,7 +97,6 @@ const POSDashboard = () => {
       <WashStationSidebar 
         activeStaff={activeStaff} 
         branchName={branchName}
-        onLogout={handleLogout}
       />
       
       <main className="flex-1 ml-64">

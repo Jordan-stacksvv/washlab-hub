@@ -40,11 +40,6 @@ const Orders = () => {
     setBranchName(branch.name || 'Central Branch');
   }, [navigate]);
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('washlab_active_staff');
-    navigate('/washstation');
-  };
-
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { label: string; className: string; icon: any }> = {
       pending_dropoff: { label: 'New Order', className: 'bg-primary/10 text-primary', icon: Clock },
@@ -95,7 +90,6 @@ const Orders = () => {
       <WashStationSidebar 
         activeStaff={activeStaff} 
         branchName={branchName}
-        onLogout={handleLogout}
       />
       
       <main className="flex-1 ml-64">

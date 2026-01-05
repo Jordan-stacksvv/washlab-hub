@@ -20,6 +20,7 @@ import ShiftManagement from "@/washstation-app/pages/ShiftManagement";
 import POSDashboard from "@/washstation-app/pages/POSDashboard";
 import NewOrder from "@/washstation-app/pages/NewOrder";
 import Orders from "@/washstation-app/pages/Orders";
+import OrderDetails from "@/washstation-app/pages/OrderDetails";
 import Customers from "@/washstation-app/pages/Customers";
 import Inventory from "@/washstation-app/pages/Inventory";
 import WashStationSettings from "@/washstation-app/pages/Settings";
@@ -77,7 +78,7 @@ const App = () => (
             <Route path="/washstation/dashboard" element={<POSDashboard />} />
             <Route path="/washstation/new-order" element={<NewOrder />} />
             <Route path="/washstation/orders" element={<Orders />} />
-            <Route path="/washstation/orders/:orderId" element={<Orders />} />
+            <Route path="/washstation/orders/:orderId" element={<OrderDetails />} />
             <Route path="/washstation/online-orders" element={<OnlineOrders />} />
             <Route path="/washstation/customers" element={<Customers />} />
             <Route path="/washstation/inventory" element={<Inventory />} />

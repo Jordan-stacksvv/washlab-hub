@@ -72,11 +72,6 @@ const NewOrder = () => {
     setBranchName(branch.name || 'Central Branch');
   }, [navigate]);
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('washlab_active_staff');
-    navigate('/washstation');
-  };
-
   const handlePhoneSubmit = () => {
     if (phone.length < 9) {
       toast.error('Please enter a valid phone number');
@@ -203,7 +198,6 @@ const NewOrder = () => {
       <WashStationSidebar 
         activeStaff={activeStaff} 
         branchName={branchName}
-        onLogout={handleLogout}
       />
       
       <main className="flex-1 ml-64">

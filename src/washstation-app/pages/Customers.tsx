@@ -43,11 +43,6 @@ const Customers = () => {
     setBranchName(branch.name || 'Central Branch');
   }, [navigate]);
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('washlab_active_staff');
-    navigate('/washstation');
-  };
-
   const handleSearch = () => {
     if (searchQuery.length >= 3) {
       const found = findByPhone(searchQuery);
@@ -71,7 +66,6 @@ const Customers = () => {
       <WashStationSidebar 
         activeStaff={activeStaff} 
         branchName={branchName}
-        onLogout={handleLogout}
       />
       
       <main className="flex-1 ml-64">
