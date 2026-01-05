@@ -5,7 +5,6 @@ import {
   Users, 
   Package, 
   Settings,
-  LogOut,
   Globe
 } from 'lucide-react';
 import washLabLogo from '@/assets/washlab-logo.png';
@@ -13,14 +12,11 @@ import washLabLogo from '@/assets/washlab-logo.png';
 interface SidebarProps {
   activeStaff?: { name: string; role: string } | null;
   branchName?: string;
-  onLogout?: () => void;
 }
 
-const WashStationSidebar = ({ activeStaff, branchName = 'Central Branch', onLogout }: SidebarProps) => {
+const WashStationSidebar = ({ activeStaff, branchName = 'Central Branch' }: SidebarProps) => {
   const location = useLocation();
   
-  // Removed "New Order" from sidebar - only on Dashboard as action card
-  // Merged Active Orders and Online Orders into one "Active Orders" entry
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/washstation/dashboard' },
     { id: 'orders', label: 'Active Orders', icon: ClipboardList, path: '/washstation/orders' },
@@ -37,12 +33,8 @@ const WashStationSidebar = ({ activeStaff, branchName = 'Central Branch', onLogo
     <aside className="w-64 bg-card border-r border-border flex flex-col h-screen fixed left-0 top-0 z-40">
       {/* Logo - Always navigates to Dashboard */}
       <div className="p-4 border-b border-border">
-        <Link to="/washstation/dashboard" className="flex items-center gap-3">
+        <Link to="/washstation/dashboard" className="flex items-center gap-2">
           <img src={washLabLogo} alt="WashLab" className="h-10 w-auto" />
-          <div>
-            <p className="font-semibold text-foreground text-sm">WashLab POS</p>
-            <p className="text-xs text-muted-foreground">Station 04 • {branchName}</p>
-          </div>
         </Link>
       </div>
 
@@ -84,28 +76,21 @@ const WashStationSidebar = ({ activeStaff, branchName = 'Central Branch', onLogo
         </Link>
       </div>
 
-      {/* Staff Info with logout to shift page */}
+      {/* Staff Info - Click avatar to go to shift management */}
       {activeStaff && (
         <div className="p-4 border-t border-border">
-          <div className="flex items-center gap-3">
-            <Link 
-              to="/washstation/shift"
-              className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold hover:bg-primary/20 transition-colors"
-            >
+          <Link 
+            to="/washstation/shift"
+            className="flex items-center gap-3 hover:bg-muted/50 p-2 -m-2 rounded-xl transition-colors"
+          >
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
               {activeStaff.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-            </Link>
+            </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-foreground text-sm truncate">{activeStaff.name}</p>
               <p className="text-xs text-muted-foreground">{activeStaff.role}</p>
             </div>
-            <button 
-              onClick={onLogout}
-              className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              title="End Shift"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
+          </Link>
         </div>
       )}
     </aside>
