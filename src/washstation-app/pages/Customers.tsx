@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import WashStationSidebar from '../components/WashStationSidebar';
 import WashStationHeader from '../components/WashStationHeader';
 import { useCustomers } from '@/hooks/useCustomers';
+import { useOrders } from '@/context/OrderContext';
 import { 
   Search,
   Plus,
@@ -15,16 +16,19 @@ import {
   User,
   Award,
   Calendar,
-  FileText
+  FileText,
+  Tag
 } from 'lucide-react';
 
 const Customers = () => {
   const navigate = useNavigate();
   const { customers, findByPhone } = useCustomers();
+  const { orders } = useOrders();
   const [activeStaff, setActiveStaff] = useState<{ name: string; role: string } | null>(null);
   const [branchName, setBranchName] = useState('Central Branch');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [foundByCard, setFoundByCard] = useState(false);
 
   useEffect(() => {
     const staffData = sessionStorage.getItem('washlab_active_staff');
@@ -43,10 +47,39 @@ const Customers = () => {
     setBranchName(branch.name || 'Central Branch');
   }, [navigate]);
 
-  const handleSearch = () => {
-    if (searchQuery.length >= 3) {
-      const found = findByPhone(searchQuery);
-      setSelectedCustomer(found || null);
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setFoundByCard(false);
+    
+    if (query.length >= 1) {
+      // First try to find by bag card number (for retrieval)
+      const orderByCard = orders.find(o => 
+        o.bagCardNumber === query || 
+        o.bagCardNumber === query.replace('#', '')
+      );
+      
+      if (orderByCard) {
+        // Found by card - find customer from order
+        const customer = findByPhone(orderByCard.customerPhone);
+        setSelectedCustomer({
+          ...customer,
+          linkedOrder: orderByCard,
+          name: customer?.name || orderByCard.customerName,
+          phone: customer?.phone || orderByCard.customerPhone
+        });
+        setFoundByCard(true);
+        return;
+      }
+      
+      // Otherwise search by phone
+      if (query.length >= 3) {
+        const found = findByPhone(query);
+        setSelectedCustomer(found || null);
+      } else {
+        setSelectedCustomer(null);
+      }
+    } else {
+      setSelectedCustomer(null);
     }
   };
 
@@ -78,22 +111,16 @@ const Customers = () => {
         <div className="p-6">
           {/* Search Header */}
           <div className="mb-6">
-            <p className="text-muted-foreground mb-4">Search by phone, name, or email to start an order.</p>
+            <p className="text-muted-foreground mb-4">
+              Search by phone, name, or <span className="text-primary font-medium">bag card number</span> to find a customer.
+            </p>
             <div className="relative max-w-2xl">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Search customer..."
+                placeholder="Search customer or enter card number (e.g. #001)..."
                 value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  if (e.target.value.length >= 3) {
-                    const found = findByPhone(e.target.value);
-                    setSelectedCustomer(found || null);
-                  } else {
-                    setSelectedCustomer(null);
-                  }
-                }}
+                onChange={(e) => handleSearch(e.target.value)}
                 className="w-full pl-12 pr-12 py-4 bg-card border border-border rounded-xl text-lg text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
               />
               {searchQuery && (
@@ -106,6 +133,30 @@ const Customers = () => {
               )}
             </div>
           </div>
+
+          {/* Found by Card Banner */}
+          {foundByCard && selectedCustomer?.linkedOrder && (
+            <div className="mb-6 p-4 bg-success/10 border border-success/20 rounded-xl flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Tag className="w-6 h-6 text-success" />
+                <div>
+                  <p className="font-semibold text-foreground">
+                    Card #{selectedCustomer.linkedOrder.bagCardNumber} Found!
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Order {selectedCustomer.linkedOrder.code} • Status: {selectedCustomer.linkedOrder.status}
+                  </p>
+                </div>
+              </div>
+              <Button 
+                onClick={() => navigate(`/washstation/orders/${selectedCustomer.linkedOrder.id}`)}
+                className="gap-2"
+              >
+                View Order
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
 
           {/* Customer Profile Card */}
           {selectedCustomer ? (

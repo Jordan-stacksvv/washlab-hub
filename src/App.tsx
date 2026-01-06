@@ -27,6 +27,9 @@ import WashStationSettings from "@/washstation-app/pages/Settings";
 import Payment from "@/washstation-app/pages/Payment";
 import OrderComplete from "@/washstation-app/pages/OrderComplete";
 import OnlineOrders from "@/washstation-app/pages/OnlineOrders";
+import WashStationAttendance from "@/washstation-app/pages/Attendance";
+import Transactions from "@/washstation-app/pages/Transactions";
+import ActivityLog from "@/washstation-app/pages/ActivityLog";
 
 // Admin App Pages
 import AdminLayout from "@/admin-app/AdminLayout";
@@ -85,6 +88,9 @@ const App = () => (
             <Route path="/washstation/settings" element={<WashStationSettings />} />
             <Route path="/washstation/payment" element={<Payment />} />
             <Route path="/washstation/order-complete" element={<OrderComplete />} />
+            <Route path="/washstation/attendance" element={<WashStationAttendance />} />
+            <Route path="/washstation/transactions" element={<Transactions />} />
+            <Route path="/washstation/activity" element={<ActivityLog />} />
             
             {/* ADMIN APP - admin.washlab.com */}
             {/* Enrollment page - standalone, no layout */}
