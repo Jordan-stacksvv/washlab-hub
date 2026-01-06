@@ -50,10 +50,16 @@ const NewOrder = () => {
   const [orderNotes, setOrderNotes] = useState<string[]>([]);
   const [customNote, setCustomNote] = useState('');
   
+  // BAG CARD SYSTEM - Physical card number for bag identification
+  const [bagCardNumber, setBagCardNumber] = useState('');
+  
   // ORDER ID - Generated ONCE at mount, NEVER changes
   const [orderId] = useState(() => `ORD-${Math.floor(Math.random() * 9000) + 1000}`);
 
   const quickNotes = ['Rush Service', 'Stains', 'Delicate', 'No Softener'];
+  
+  // Available bag card numbers (in real app, would be fetched from inventory)
+  const availableCards = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010'];
 
   useEffect(() => {
     const staffData = sessionStorage.getItem('washlab_active_staff');
@@ -104,6 +110,11 @@ const NewOrder = () => {
   };
 
   const handleProceedToPayment = () => {
+    if (!bagCardNumber) {
+      toast.error('Please select a bag card number');
+      return;
+    }
+    
     const pricing = calculateTotalPrice(serviceType, weight, false);
     
     const order = addOrder({
@@ -113,7 +124,7 @@ const NewOrder = () => {
       hall: '',
       room: '',
       status: 'checked_in',
-      bagCardNumber: `${Math.floor(Math.random() * 900) + 100}`,
+      bagCardNumber: bagCardNumber, // Use the selected bag card number
       items: [{ category: serviceType, quantity: itemCount || 1 }],
       totalPrice: pricing.total,
       weight: weight,
@@ -546,10 +557,44 @@ const NewOrder = () => {
                     </p>
                   </div>
 
-                  {/* 4. Order Notes */}
+                  {/* 4. Bag Card Number (CRITICAL) */}
                   <div>
                     <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-full bg-muted text-muted-foreground text-xs flex items-center justify-center">4</span>
+                      <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">4</span>
+                      Bag Card Number
+                      <span className="text-destructive">*</span>
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Select the physical card placed inside the laundry bag. Customer gets the matching card.
+                    </p>
+                    <div className="grid grid-cols-5 gap-2">
+                      {availableCards.map((card) => (
+                        <button
+                          key={card}
+                          onClick={() => setBagCardNumber(card)}
+                          className={`h-12 rounded-xl font-bold text-lg transition-all ${
+                            bagCardNumber === card
+                              ? 'bg-primary text-primary-foreground ring-2 ring-primary/50'
+                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                          }`}
+                        >
+                          #{card}
+                        </button>
+                      ))}
+                    </div>
+                    {bagCardNumber && (
+                      <div className="mt-3 p-3 bg-success/10 border border-success/20 rounded-xl">
+                        <p className="text-sm text-success font-medium">
+                          ✓ Card #{bagCardNumber} selected - Give matching card to customer
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 5. Order Notes */}
+                  <div>
+                    <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-muted text-muted-foreground text-xs flex items-center justify-center">5</span>
                       Order Notes
                     </h3>
                     <div className="flex flex-wrap gap-2 mb-3">

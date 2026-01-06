@@ -18,21 +18,30 @@ import {
   Truck,
   User,
   Scale,
-  AlertCircle
+  AlertCircle,
+  CreditCard,
+  Tag
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Washing stages in order
 const WASH_STAGES = [
-  { id: 'checked_in', label: 'Checked In', icon: Package },
-  { id: 'sorting', label: 'Sorting', icon: Package },
-  { id: 'washing', label: 'Washing', icon: Droplets },
-  { id: 'drying', label: 'Drying', icon: Wind },
-  { id: 'folding', label: 'Folding', icon: Shirt },
-  { id: 'ready', label: 'Ready', icon: CheckCircle },
-  { id: 'completed', label: 'Delivered', icon: Truck },
+  { id: 'checked_in', label: 'Received', icon: Package, requiresVerification: false },
+  { id: 'sorting', label: 'Sorting', icon: Package, requiresVerification: false },
+  { id: 'washing', label: 'Washing', icon: Droplets, requiresVerification: false },
+  { id: 'drying', label: 'Drying', icon: Wind, requiresVerification: false },
+  { id: 'folding', label: 'Folding', icon: Shirt, requiresVerification: false },
+  { id: 'ready', label: 'Ready', icon: CheckCircle, requiresVerification: false },
+  { id: 'completed', label: 'Delivered', icon: Truck, requiresVerification: true }, // Only handover needs verification
 ];
 
+/**
+ * Order Details Page
+ * 
+ * Stage transitions:
+ * - Normal stages: ONE CLICK (no passcode/verification)
+ * - Final handover (Completed): Requires biometric verification
+ */
 const OrderDetails = () => {
   const navigate = useNavigate();
   const { orderId } = useParams();
@@ -81,8 +90,27 @@ const OrderDetails = () => {
   const nextStage = WASH_STAGES[currentStageIndex + 1];
 
   const handleAdvanceStage = (stageId: string) => {
-    setPendingStage(stageId);
-    setShowVerifyModal(true);
+    const stage = WASH_STAGES.find(s => s.id === stageId);
+    
+    // Only require verification for final handover
+    if (stage?.requiresVerification) {
+      setPendingStage(stageId);
+      setShowVerifyModal(true);
+    } else {
+      // Direct stage transition - NO verification needed
+      updateOrder(order.id, { status: stageId as Order['status'] });
+      toast.success(`Order advanced to ${stage?.label || stageId}`);
+      
+      // Log the action
+      const activityLog = JSON.parse(localStorage.getItem('washlab_activity_log') || '[]');
+      activityLog.push({
+        staffName: activeStaff?.name,
+        action: `Moved order ${order.code} to ${stage?.label}`,
+        orderId: order.code,
+        timestamp: new Date().toISOString()
+      });
+      localStorage.setItem('washlab_activity_log', JSON.stringify(activityLog));
+    }
   };
 
   const handleVerifySuccess = () => {
@@ -134,8 +162,15 @@ const OrderDetails = () => {
                       {order.orderType === 'online' ? 'Online Order' : 'Walk-in'} • Created {new Date(order.createdAt).toLocaleString()}
                     </p>
                   </div>
-                  <div className={`px-4 py-2 rounded-full text-sm font-semibold ${getStatusColor(order.status)}`}>
-                    {WASH_STAGES.find(s => s.id === order.status)?.label || order.status}
+                  <div className="flex items-center gap-3">
+                    <span className={`px-4 py-2 rounded-full text-sm font-semibold ${
+                      order.paymentStatus === 'paid' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
+                    }`}>
+                      {order.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                    </span>
+                    <span className={`px-4 py-2 rounded-full text-sm font-semibold ${getStatusColor(order.status)}`}>
+                      {WASH_STAGES.find(s => s.id === order.status)?.label || order.status}
+                    </span>
                   </div>
                 </div>
 
@@ -172,6 +207,25 @@ const OrderDetails = () => {
                   })}
                 </div>
               </div>
+
+              {/* Bag Card Number */}
+              {order.bagCardNumber && (
+                <div className="bg-card border border-border rounded-2xl p-6">
+                  <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <Tag className="w-5 h-5 text-primary" />
+                    Bag Card
+                  </h3>
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 bg-primary/10 rounded-xl flex items-center justify-center">
+                      <span className="text-2xl font-bold text-primary">#{order.bagCardNumber}</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Card Number</p>
+                      <p className="text-lg font-semibold text-foreground">#{order.bagCardNumber}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Order Items */}
               <div className="bg-card border border-border rounded-2xl p-6">
@@ -211,13 +265,31 @@ const OrderDetails = () => {
               {nextStage && order.status !== 'completed' && (
                 <div className="bg-card border border-border rounded-2xl p-6">
                   <h3 className="font-semibold text-foreground mb-4">Actions</h3>
+                  
+                  {/* Payment gate - cannot process until paid */}
+                  {order.paymentStatus !== 'paid' && order.status === 'checked_in' && (
+                    <div className="bg-warning/10 border border-warning/20 rounded-xl p-4 mb-4">
+                      <p className="text-warning font-medium flex items-center gap-2">
+                        <CreditCard className="w-5 h-5" />
+                        Payment Required
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Staff cannot proceed to processing until order is paid.
+                      </p>
+                    </div>
+                  )}
+                  
                   <Button 
                     size="lg"
                     className="w-full"
                     onClick={() => handleAdvanceStage(nextStage.id)}
+                    disabled={order.paymentStatus !== 'paid' && order.status === 'checked_in'}
                   >
                     <nextStage.icon className="w-5 h-5 mr-2" />
                     Move to {nextStage.label}
+                    {nextStage.requiresVerification && (
+                      <span className="ml-2 text-xs opacity-75">(Requires Verification)</span>
+                    )}
                   </Button>
                 </div>
               )}
@@ -267,11 +339,22 @@ const OrderDetails = () => {
                       </p>
                     </div>
                   </div>
-                  {order.status !== 'pending_dropoff' && (
+                  {order.paymentStatus === 'paid' && (
                     <div className="flex items-start gap-3">
                       <div className="w-2 h-2 rounded-full bg-success mt-2" />
                       <div>
-                        <p className="text-sm font-medium text-foreground">Processing Started</p>
+                        <p className="text-sm font-medium text-foreground">Payment Confirmed</p>
+                        <p className="text-xs text-muted-foreground">
+                          {order.paidAt ? new Date(order.paidAt).toLocaleString() : 'Confirmed'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {order.status !== 'pending_dropoff' && order.status !== 'checked_in' && (
+                    <div className="flex items-start gap-3">
+                      <div className="w-2 h-2 rounded-full bg-primary mt-2" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Processing</p>
                         <p className="text-xs text-muted-foreground">In progress</p>
                       </div>
                     </div>
@@ -291,7 +374,7 @@ const OrderDetails = () => {
         }}
         onSuccess={handleVerifySuccess}
         orderId={order.code}
-        action={`Move to ${pendingStage ? WASH_STAGES.find(s => s.id === pendingStage)?.label : 'next stage'}`}
+        action={`Final Handover - ${pendingStage ? WASH_STAGES.find(s => s.id === pendingStage)?.label : 'Delivered'}`}
       />
     </div>
   );

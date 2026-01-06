@@ -5,7 +5,9 @@ import {
   Users, 
   Package, 
   Settings,
-  Globe
+  Clock,
+  CreditCard,
+  Activity
 } from 'lucide-react';
 import washLabLogo from '@/assets/washlab-logo.png';
 
@@ -14,13 +16,30 @@ interface SidebarProps {
   branchName?: string;
 }
 
+/**
+ * WashStation Sidebar
+ * 
+ * Navigation:
+ * - Dashboard
+ * - Orders (Active Orders)
+ * - Attendance
+ * - Transactions
+ * - Activity Log
+ * - Customers
+ * - Settings
+ * 
+ * "Start New Order" button is ONLY on Dashboard main content.
+ * Profile bubble opens profile menu, not redirect to login.
+ */
 const WashStationSidebar = ({ activeStaff, branchName = 'Central Branch' }: SidebarProps) => {
   const location = useLocation();
   
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/washstation/dashboard' },
-    { id: 'orders', label: 'Active Orders', icon: ClipboardList, path: '/washstation/orders' },
-    { id: 'online-orders', label: 'Online Orders', icon: Globe, path: '/washstation/online-orders' },
+    { id: 'orders', label: 'Orders', icon: ClipboardList, path: '/washstation/orders' },
+    { id: 'attendance', label: 'Attendance', icon: Clock, path: '/washstation/attendance' },
+    { id: 'transactions', label: 'Transactions', icon: CreditCard, path: '/washstation/transactions' },
+    { id: 'activity', label: 'Activity Log', icon: Activity, path: '/washstation/activity' },
     { id: 'customers', label: 'Customers', icon: Users, path: '/washstation/customers' },
     { id: 'inventory', label: 'Inventory', icon: Package, path: '/washstation/inventory' },
   ];
@@ -76,14 +95,14 @@ const WashStationSidebar = ({ activeStaff, branchName = 'Central Branch' }: Side
         </Link>
       </div>
 
-      {/* Staff Info - Click avatar to go to shift management */}
+      {/* Staff Info - Click to go to shift management */}
       {activeStaff && (
         <div className="p-4 border-t border-border">
           <Link 
             to="/washstation/shift"
             className="flex items-center gap-3 hover:bg-muted/50 p-2 -m-2 rounded-xl transition-colors"
           >
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold border-2 border-primary">
               {activeStaff.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
             </div>
             <div className="flex-1 min-w-0">
