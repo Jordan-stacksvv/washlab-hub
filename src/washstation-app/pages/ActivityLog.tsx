@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import WashStationSidebar from '../components/WashStationSidebar';
 import WashStationHeader from '../components/WashStationHeader';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { 
   Search,
   Filter,
@@ -13,7 +15,9 @@ import {
   LogOut,
   CreditCard,
   Package,
-  Fingerprint
+  Fingerprint,
+  Calendar,
+  Download
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -36,6 +40,15 @@ const ActivityLog = () => {
   const [branchName, setBranchName] = useState('Central Branch');
   const [activities, setActivities] = useState<ActivityEntry[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // DATE FILTER
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [actionTypeFilter, setActionTypeFilter] = useState<string>('all');
+  const [staffFilter, setStaffFilter] = useState<string>('all');
+
+  // Get unique staff names for filter
+  const uniqueStaff = [...new Set(activities.map(a => a.staffName).filter(Boolean))];
 
   useEffect(() => {
     const staffData = sessionStorage.getItem('washlab_active_staff');
@@ -53,6 +66,10 @@ const ActivityLog = () => {
     const branch = JSON.parse(branchData);
     setBranchName(branch.name || 'Central Branch');
 
+    loadActivities();
+  }, [navigate]);
+
+  const loadActivities = () => {
     // Aggregate activities from multiple logs
     const allActivities: ActivityEntry[] = [];
 
@@ -69,6 +86,22 @@ const ActivityLog = () => {
         verified: true,
         timestamp: entry.timestamp,
         details: `Branch: ${entry.branchName}`
+      });
+    });
+
+    // Activity log (order updates, etc.)
+    const activityLog = JSON.parse(localStorage.getItem('washlab_activity_log') || '[]');
+    activityLog.forEach((entry: any, idx: number) => {
+      allActivities.push({
+        id: `act-${idx}`,
+        staffId: entry.staffId || '',
+        staffName: entry.staffName,
+        action: entry.action,
+        actionType: 'order_update',
+        orderId: entry.orderId,
+        verified: true,
+        timestamp: entry.timestamp,
+        details: entry.orderId ? `Order: ${entry.orderId}` : undefined
       });
     });
 
@@ -100,14 +133,14 @@ const ActivityLog = () => {
         orderId: txn.orderCode,
         verified: true,
         timestamp: txn.createdAt,
-        details: `GH₵ ${txn.amount.toFixed(2)} - ${txn.customerName}`
+        details: `GH₵ ${txn.amount?.toFixed(2) || '0.00'} - ${txn.customerName}`
       });
     });
 
     // Sort by timestamp (newest first)
     allActivities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     setActivities(allActivities);
-  }, [navigate]);
+  };
 
   const getActionIcon = (actionType: string) => {
     switch(actionType) {
@@ -120,17 +153,68 @@ const ActivityLog = () => {
     }
   };
 
+  // Apply all filters
   const filteredActivities = activities.filter(activity => {
+    // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      return (
+      const matchesSearch = (
         activity.staffName?.toLowerCase().includes(query) ||
         activity.action?.toLowerCase().includes(query) ||
         activity.orderId?.toLowerCase().includes(query)
       );
+      if (!matchesSearch) return false;
     }
+    
+    // Date from filter
+    if (dateFrom) {
+      const activityDate = new Date(activity.timestamp);
+      const fromDate = new Date(dateFrom);
+      fromDate.setHours(0, 0, 0, 0);
+      if (activityDate < fromDate) return false;
+    }
+    
+    // Date to filter
+    if (dateTo) {
+      const activityDate = new Date(activity.timestamp);
+      const toDate = new Date(dateTo);
+      toDate.setHours(23, 59, 59, 999);
+      if (activityDate > toDate) return false;
+    }
+    
+    // Action type filter
+    if (actionTypeFilter !== 'all' && activity.actionType !== actionTypeFilter) {
+      return false;
+    }
+    
+    // Staff filter
+    if (staffFilter !== 'all' && activity.staffName !== staffFilter) {
+      return false;
+    }
+    
     return true;
   });
+
+  const handleExport = () => {
+    const csv = [
+      ['Date', 'Time', 'Staff', 'Action', 'Details', 'Verified'].join(','),
+      ...filteredActivities.map(a => [
+        format(new Date(a.timestamp), 'yyyy-MM-dd'),
+        format(new Date(a.timestamp), 'HH:mm:ss'),
+        a.staffName,
+        a.action,
+        a.details || '',
+        a.verified ? 'Yes' : 'No'
+      ].join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `activity-log-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+  };
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -166,22 +250,112 @@ const ActivityLog = () => {
             </div>
           </div>
 
-          {/* Search */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search by staff, action, or order..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-muted border-0 rounded-xl text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary"
-              />
+          {/* Filters */}
+          <div className="bg-card border border-border rounded-xl p-4 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Filter className="w-5 h-5 text-muted-foreground" />
+              <span className="font-medium text-foreground">Filters</span>
+            </div>
+            
+            <div className="grid grid-cols-5 gap-4">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              
+              {/* Date From */}
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">From</span>
+                </div>
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                />
+              </div>
+              
+              {/* Date To */}
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">To</span>
+                </div>
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                />
+              </div>
+              
+              {/* Action Type */}
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Action Type</div>
+                <select
+                  value={actionTypeFilter}
+                  onChange={(e) => setActionTypeFilter(e.target.value)}
+                  className="w-full h-10 px-3 bg-muted border-0 rounded-md text-foreground"
+                >
+                  <option value="all">All Actions</option>
+                  <option value="clock_in">Clock In</option>
+                  <option value="clock_out">Clock Out</option>
+                  <option value="payment">Payment</option>
+                  <option value="order_update">Order Update</option>
+                  <option value="verification">Verification</option>
+                </select>
+              </div>
+              
+              {/* Staff */}
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Staff</div>
+                <select
+                  value={staffFilter}
+                  onChange={(e) => setStaffFilter(e.target.value)}
+                  className="w-full h-10 px-3 bg-muted border-0 rounded-md text-foreground"
+                >
+                  <option value="all">All Staff</option>
+                  {uniqueStaff.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between mt-4">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  setSearchQuery('');
+                  setDateFrom('');
+                  setDateTo('');
+                  setActionTypeFilter('all');
+                  setStaffFilter('all');
+                }}
+              >
+                Clear Filters
+              </Button>
+              <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
+                <Download className="w-4 h-4" />
+                Export CSV
+              </Button>
             </div>
           </div>
 
           {/* Activity Timeline */}
           <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-border bg-muted/30">
+              <span className="text-sm text-muted-foreground">
+                Showing {filteredActivities.length} of {activities.length} activities
+              </span>
+            </div>
             <div className="divide-y divide-border">
               {filteredActivities.length > 0 ? (
                 filteredActivities.map((activity) => (

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import WashStationSidebar from '../components/WashStationSidebar';
 import WashStationHeader from '../components/WashStationHeader';
@@ -22,6 +22,7 @@ import {
 
 const Customers = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { customers, findByPhone } = useCustomers();
   const { orders } = useOrders();
   const [activeStaff, setActiveStaff] = useState<{ name: string; role: string } | null>(null);
@@ -51,6 +52,7 @@ const Customers = () => {
     setSearchQuery(query);
     setFoundByCard(false);
     
+    // Only show results when there's actual input
     if (query.length >= 1) {
       // First try to find by bag card number (for retrieval)
       const orderByCard = orders.find(o => 
@@ -79,20 +81,41 @@ const Customers = () => {
         setSelectedCustomer(null);
       }
     } else {
+      // Clear results when input is empty
       setSelectedCustomer(null);
     }
   };
 
-  const handleNewOrder = (customerId: string) => {
-    navigate('/washstation/new-order', { state: { customerId } });
+  // Start new order with selected customer - pass customer data properly
+  const handleNewOrder = () => {
+    if (selectedCustomer) {
+      // Store selected customer in session for NewOrder page
+      sessionStorage.setItem('washlab_selected_customer', JSON.stringify({
+        id: selectedCustomer.id,
+        name: selectedCustomer.name,
+        phone: selectedCustomer.phone,
+        email: selectedCustomer.email
+      }));
+      navigate('/washstation/new-order');
+    }
   };
 
-  // Mock customer orders
-  const mockOrders = [
-    { id: 'ORD-9281', date: 'Oct 12, 2023', items: '3x Wash & Fold (L)', total: 45.00, status: 'Completed' },
-    { id: 'ORD-8842', date: 'Sep 28, 2023', items: '1x Comforter (K)', total: 22.50, status: 'Completed' },
-    { id: 'ORD-7210', date: 'Aug 15, 2023', items: '2x Wash & Fold (M)', total: 30.00, status: 'Completed' },
-  ];
+  // Get customer's real orders from context
+  const customerOrders = selectedCustomer 
+    ? orders.filter(o => o.customerPhone === selectedCustomer.phone)
+    : [];
+
+  // View order details
+  const handleViewOrder = (orderId: string) => {
+    navigate(`/washstation/orders/${orderId}`);
+  };
+
+  // View all orders for customer
+  const handleViewAllOrders = () => {
+    if (selectedCustomer) {
+      navigate('/washstation/orders', { state: { customerPhone: selectedCustomer.phone } });
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -158,7 +181,7 @@ const Customers = () => {
             </div>
           )}
 
-          {/* Customer Profile Card */}
+          {/* Customer Profile Card - Only show when there's a result */}
           {selectedCustomer ? (
             <div className="bg-card border border-border rounded-2xl overflow-hidden">
               {/* Customer Header */}
@@ -171,7 +194,7 @@ const Customers = () => {
                     <div>
                       <div className="flex items-center gap-2">
                         <h2 className="text-xl font-bold text-foreground">{selectedCustomer.name}</h2>
-                        {selectedCustomer.totalOrders > 10 && (
+                        {customerOrders.length > 10 && (
                           <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full flex items-center gap-1">
                             <Award className="w-3 h-3" />
                             GOLD
@@ -198,7 +221,7 @@ const Customers = () => {
                       Edit Profile
                     </Button>
                     <Button 
-                      onClick={() => handleNewOrder(selectedCustomer.id)}
+                      onClick={handleNewOrder}
                       className="bg-primary text-primary-foreground gap-2"
                     >
                       <Plus className="w-4 h-4" />
@@ -213,70 +236,97 @@ const Customers = () => {
                 <div className="p-5 border-r border-border">
                   <p className="text-sm text-muted-foreground">Store Credit</p>
                   <p className="text-2xl font-bold text-success mt-1">
-                    ${(selectedCustomer.storeCredit || 24.50).toFixed(2)}
+                    GH₵ {(selectedCustomer.storeCredit || 0).toFixed(2)}
                   </p>
                 </div>
                 <div className="p-5 border-r border-border">
                   <p className="text-sm text-muted-foreground">Total Orders</p>
                   <p className="text-2xl font-bold text-foreground mt-1">
-                    {selectedCustomer.totalOrders || 14}
+                    {customerOrders.length}
                   </p>
                 </div>
                 <div className="p-5 border-r border-border">
                   <p className="text-sm text-muted-foreground">Last Visit</p>
                   <p className="text-2xl font-bold text-foreground mt-1">
-                    {selectedCustomer.lastVisit || 'Oct 12, 2023'}
+                    {customerOrders.length > 0 
+                      ? new Date(customerOrders[0].createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                      : 'N/A'
+                    }
                   </p>
                 </div>
                 <div className="p-5">
                   <p className="text-sm text-muted-foreground">Notes</p>
                   <p className="text-sm text-foreground mt-1 italic text-warning">
-                    {selectedCustomer.notes || '"Allergic to lavender detergent. Prefer..."'}
+                    {selectedCustomer.notes || 'No notes'}
                   </p>
                 </div>
               </div>
 
-              {/* Recent Orders */}
+              {/* Recent Orders - From real order data */}
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-semibold text-foreground">Recent Orders</h3>
-                  <button className="text-sm text-primary hover:underline flex items-center gap-1">
-                    View All <ArrowRight className="w-4 h-4" />
-                  </button>
+                  {customerOrders.length > 0 && (
+                    <button 
+                      onClick={handleViewAllOrders}
+                      className="text-sm text-primary hover:underline flex items-center gap-1"
+                    >
+                      View All <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
 
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 text-xs font-medium text-muted-foreground uppercase">Order ID</th>
-                      <th className="text-left py-3 text-xs font-medium text-muted-foreground uppercase">Date</th>
-                      <th className="text-left py-3 text-xs font-medium text-muted-foreground uppercase">Items</th>
-                      <th className="text-left py-3 text-xs font-medium text-muted-foreground uppercase">Total</th>
-                      <th className="text-left py-3 text-xs font-medium text-muted-foreground uppercase">Status</th>
-                      <th className="text-left py-3 text-xs font-medium text-muted-foreground uppercase">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {mockOrders.map(order => (
-                      <tr key={order.id}>
-                        <td className="py-3 font-medium text-foreground">{order.id}</td>
-                        <td className="py-3 text-muted-foreground">{order.date}</td>
-                        <td className="py-3 text-muted-foreground">{order.items}</td>
-                        <td className="py-3 font-medium text-foreground">${order.total.toFixed(2)}</td>
-                        <td className="py-3">
-                          <span className="px-2 py-1 bg-success/10 text-success text-xs rounded-full">
-                            ● {order.status}
-                          </span>
-                        </td>
-                        <td className="py-3">
-                          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </td>
+                {customerOrders.length > 0 ? (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-3 text-xs font-medium text-muted-foreground uppercase">Order ID</th>
+                        <th className="text-left py-3 text-xs font-medium text-muted-foreground uppercase">Date</th>
+                        <th className="text-left py-3 text-xs font-medium text-muted-foreground uppercase">Items</th>
+                        <th className="text-left py-3 text-xs font-medium text-muted-foreground uppercase">Total</th>
+                        <th className="text-left py-3 text-xs font-medium text-muted-foreground uppercase">Status</th>
+                        <th className="text-left py-3 text-xs font-medium text-muted-foreground uppercase">Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {customerOrders.slice(0, 5).map(order => (
+                        <tr key={order.id}>
+                          <td className="py-3 font-medium text-foreground">{order.code}</td>
+                          <td className="py-3 text-muted-foreground">
+                            {new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </td>
+                          <td className="py-3 text-muted-foreground">
+                            {order.items?.[0]?.category?.replace('_', ' & ') || 'Wash & Fold'} ({order.weight || 5}kg)
+                          </td>
+                          <td className="py-3 font-medium text-foreground">GH₵ {(order.totalPrice || 0).toFixed(2)}</td>
+                          <td className="py-3">
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              order.status === 'completed' ? 'bg-success/10 text-success' :
+                              order.status === 'ready' ? 'bg-primary/10 text-primary' :
+                              'bg-warning/10 text-warning'
+                            }`}>
+                              ● {order.status.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className="py-3">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="text-muted-foreground hover:text-foreground"
+                              onClick={() => handleViewOrder(order.id)}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No orders found for this customer
+                  </div>
+                )}
               </div>
             </div>
           ) : searchQuery.length >= 3 ? (
@@ -294,13 +344,23 @@ const Customers = () => {
                 Create New Customer
               </Button>
             </div>
+          ) : searchQuery.length > 0 ? (
+            // Show "keep typing" message when partially typing
+            <div className="bg-card border border-border rounded-2xl p-12 text-center">
+              <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
+                <Search className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Keep Typing...</h3>
+              <p className="text-muted-foreground">Enter at least 3 characters to search</p>
+            </div>
           ) : (
+            // Empty state - no input yet
             <div className="bg-card border border-border rounded-2xl p-12 text-center">
               <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
                 <Search className="w-8 h-8 text-muted-foreground" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Search for a Customer</h3>
-              <p className="text-muted-foreground">Enter a phone number, name, or email to find a customer profile</p>
+              <p className="text-muted-foreground">Enter a phone number, name, or card number to find a customer profile</p>
               <p className="text-sm text-muted-foreground mt-4">
                 <FileText className="w-4 h-4 inline mr-1" />
                 Can't find them? Create a new customer profile

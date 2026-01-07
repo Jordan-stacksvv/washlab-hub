@@ -20,7 +20,9 @@ import {
   Scale,
   AlertCircle,
   CreditCard,
-  Tag
+  Tag,
+  MessageCircle,
+  Check
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -41,6 +43,10 @@ const WASH_STAGES = [
  * Stage transitions:
  * - Normal stages: ONE CLICK (no passcode/verification)
  * - Final handover (Completed): Requires biometric verification
+ * 
+ * Features:
+ * - WhatsApp notifications when ready
+ * - Pickup confirmation
  */
 const OrderDetails = () => {
   const navigate = useNavigate();
@@ -50,6 +56,7 @@ const OrderDetails = () => {
   const [branchName, setBranchName] = useState('Central Branch');
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [pendingStage, setPendingStage] = useState<string | null>(null);
+  const [pickupConfirmed, setPickupConfirmed] = useState(false);
   
   const order = orders.find(o => o.id === orderId);
 
@@ -120,6 +127,58 @@ const OrderDetails = () => {
       setShowVerifyModal(false);
       setPendingStage(null);
     }
+  };
+
+  // WhatsApp notification - opens WhatsApp with prefilled message
+  const handleSendWhatsApp = () => {
+    const message = encodeURIComponent(
+      `🧺 WashLab Order Ready!\n\n` +
+      `Hi ${order.customerName},\n\n` +
+      `Your laundry order (${order.code}) is now ready for pickup!\n\n` +
+      `📍 Card #${order.bagCardNumber || 'N/A'}\n` +
+      `💰 Amount: GH₵ ${order.totalPrice?.toFixed(2) || '0.00'}\n\n` +
+      `Please bring your bag card for collection.\n\n` +
+      `Thank you for choosing WashLab! 🌟`
+    );
+    const phone = order.customerPhone?.replace(/\D/g, '');
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+    toast.success('WhatsApp opened with message');
+  };
+
+  // Send payment receipt via WhatsApp
+  const handleSendReceipt = () => {
+    const message = encodeURIComponent(
+      `🧾 WashLab Receipt\n\n` +
+      `Order: ${order.code}\n` +
+      `Customer: ${order.customerName}\n` +
+      `Card #: ${order.bagCardNumber || 'N/A'}\n\n` +
+      `Service: ${order.items?.[0]?.category?.replace('_', ' & ') || 'Wash & Fold'}\n` +
+      `Weight: ${order.weight || 0}kg\n\n` +
+      `Amount Paid: GH₵ ${order.totalPrice?.toFixed(2) || '0.00'}\n` +
+      `Date: ${new Date(order.createdAt).toLocaleDateString()}\n` +
+      `Branch: ${branchName}\n\n` +
+      `Thank you for choosing WashLab! 🧺`
+    );
+    const phone = order.customerPhone?.replace(/\D/g, '');
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+    toast.success('Receipt sent via WhatsApp');
+  };
+
+  // Confirm pickup
+  const handleConfirmPickup = () => {
+    updateOrder(order.id, { status: 'completed' });
+    setPickupConfirmed(true);
+    toast.success('Order marked as picked up!');
+    
+    // Log the action
+    const activityLog = JSON.parse(localStorage.getItem('washlab_activity_log') || '[]');
+    activityLog.push({
+      staffName: activeStaff?.name,
+      action: `Confirmed pickup for order ${order.code}`,
+      orderId: order.code,
+      timestamp: new Date().toISOString()
+    });
+    localStorage.setItem('washlab_activity_log', JSON.stringify(activityLog));
   };
 
   const getStatusColor = (stageId: string) => {
@@ -236,7 +295,7 @@ const OrderDetails = () => {
                       <div className="flex items-center gap-3">
                         <Package className="w-5 h-5 text-primary" />
                         <div>
-                          <p className="font-medium text-foreground">{item.category}</p>
+                          <p className="font-medium text-foreground">{item.category?.replace('_', ' & ')}</p>
                           <p className="text-sm text-muted-foreground">Qty: {item.quantity || 1}</p>
                         </div>
                       </div>
@@ -261,8 +320,64 @@ const OrderDetails = () => {
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              {nextStage && order.status !== 'completed' && (
+              {/* WhatsApp Actions - When order is ready */}
+              {order.status === 'ready' && (
+                <div className="bg-card border border-border rounded-2xl p-6">
+                  <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <MessageCircle className="w-5 h-5 text-success" />
+                    Customer Notifications
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Button 
+                      onClick={handleSendWhatsApp}
+                      className="bg-green-600 hover:bg-green-700 text-white gap-2"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                      Send "Wash Ready" WhatsApp
+                    </Button>
+                    <Button 
+                      onClick={handleSendReceipt}
+                      variant="outline"
+                      className="gap-2"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                      Send Receipt via WhatsApp
+                    </Button>
+                  </div>
+                  
+                  {/* Pickup Confirmation */}
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <h4 className="font-medium text-foreground mb-3">Confirm Pickup</h4>
+                    {!pickupConfirmed && order.status !== 'completed' ? (
+                      <div className="flex items-center gap-4">
+                        <p className="text-muted-foreground flex-1">Has the customer picked up their laundry?</p>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => toast.info('Waiting for customer')}
+                          className="gap-2"
+                        >
+                          No
+                        </Button>
+                        <Button 
+                          onClick={handleConfirmPickup}
+                          className="bg-success hover:bg-success/90 text-success-foreground gap-2"
+                        >
+                          <Check className="w-4 h-4" />
+                          Yes, Picked Up
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-success">
+                        <CheckCircle className="w-5 h-5" />
+                        <span className="font-medium">Pickup confirmed - Order complete</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons - For stage progression */}
+              {nextStage && !['completed', 'ready'].includes(order.status) && (
                 <div className="bg-card border border-border rounded-2xl p-6">
                   <h3 className="font-semibold text-foreground mb-4">Actions</h3>
                   
