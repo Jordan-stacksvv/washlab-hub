@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/shared/ui';
 import { useWebAuthn } from '@/shared/hooks/useWebAuthn';
-import washLabLogo from '@/assets/washlab-logo.png';
+import washLabWhiteLogo from '@/assets/washlab-white.png';
 import { Fingerprint, Loader2, CheckCircle, AlertCircle, QrCode } from 'lucide-react';
 
 interface Branch {
@@ -18,7 +18,9 @@ interface Branch {
  * - WebAuthn Face ID / Fingerprint scan
  * - Auto-identifies staff
  * - Records timestamp
- * - Redirects to dashboard on success
+ * - Redirects to confirm clock-in on success
+ * 
+ * Uses WHITE LOGO on blue background
  */
 const FaceScan = () => {
   const navigate = useNavigate();
@@ -113,9 +115,9 @@ const FaceScan = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary via-primary/95 to-primary flex flex-col">
-      {/* Header */}
+      {/* Header - WHITE LOGO on blue background */}
       <header className="p-6 flex items-center justify-between">
-        <img src={washLabLogo} alt="WashLab" className="h-10 w-auto" />
+        <img src={washLabWhiteLogo} alt="WashLab" className="h-10 w-auto" />
         {branch && (
           <span className="bg-white/20 text-white px-4 py-2 rounded-full text-sm font-semibold">
             {branch.name}

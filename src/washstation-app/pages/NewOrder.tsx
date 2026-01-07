@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import WashStationSidebar from '../components/WashStationSidebar';
 import WashStationHeader from '../components/WashStationHeader';
@@ -20,16 +20,31 @@ import {
   Minus,
   Edit,
   Clock,
-  CheckCircle
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 type Step = 'phone' | 'customer-found' | 'register' | 'order';
 
+// Storage key for draft orders
+const DRAFT_ORDER_KEY = 'washlab_draft_order';
+
+// Card tracking - cards that are currently issued
+const getIssuedCards = (): string[] => {
+  const issued = localStorage.getItem('washlab_issued_cards');
+  return issued ? JSON.parse(issued) : [];
+};
+
+const setIssuedCards = (cards: string[]) => {
+  localStorage.setItem('washlab_issued_cards', JSON.stringify(cards));
+};
+
 const NewOrder = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { findByPhone, createCustomer } = useCustomers();
-  const { addOrder } = useOrders();
+  const { addOrder, orders } = useOrders();
   
   const [activeStaff, setActiveStaff] = useState<{ name: string; role: string } | null>(null);
   const [branchName, setBranchName] = useState('Central Branch');
@@ -58,8 +73,61 @@ const NewOrder = () => {
 
   const quickNotes = ['Rush Service', 'Stains', 'Delicate', 'No Softener'];
   
-  // Available bag card numbers (in real app, would be fetched from inventory)
-  const availableCards = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010'];
+  // Available bag card numbers - exclude cards that are already issued
+  const allCards = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010'];
+  const issuedCards = getIssuedCards();
+  const availableCards = allCards.filter(card => !issuedCards.includes(card));
+
+  // Load draft order on mount
+  useEffect(() => {
+    const draft = localStorage.getItem(DRAFT_ORDER_KEY);
+    if (draft) {
+      try {
+        const parsed = JSON.parse(draft);
+        // Restore draft state
+        if (parsed.phone) setPhone(parsed.phone);
+        if (parsed.foundCustomer) setFoundCustomer(parsed.foundCustomer);
+        if (parsed.step) setStep(parsed.step);
+        if (parsed.serviceType) setServiceType(parsed.serviceType);
+        if (parsed.weight) setWeight(parsed.weight);
+        if (parsed.itemCount) setItemCount(parsed.itemCount);
+        if (parsed.orderNotes) setOrderNotes(parsed.orderNotes);
+        if (parsed.customNote) setCustomNote(parsed.customNote);
+        if (parsed.bagCardNumber) setBagCardNumber(parsed.bagCardNumber);
+        toast.info('Restored your draft order');
+      } catch (e) {
+        console.error('Failed to restore draft', e);
+      }
+    }
+    
+    // Check if customer was selected from Customers page
+    const selectedCustomer = sessionStorage.getItem('washlab_selected_customer');
+    if (selectedCustomer) {
+      const customer = JSON.parse(selectedCustomer);
+      setFoundCustomer(customer);
+      setPhone(customer.phone || '');
+      setStep('order'); // Skip directly to order step
+      sessionStorage.removeItem('washlab_selected_customer');
+    }
+  }, []);
+
+  // Save draft on changes
+  useEffect(() => {
+    if (step !== 'phone' || phone.length > 0) {
+      const draft = {
+        phone,
+        foundCustomer,
+        step,
+        serviceType,
+        weight,
+        itemCount,
+        orderNotes,
+        customNote,
+        bagCardNumber
+      };
+      localStorage.setItem(DRAFT_ORDER_KEY, JSON.stringify(draft));
+    }
+  }, [phone, foundCustomer, step, serviceType, weight, itemCount, orderNotes, customNote, bagCardNumber]);
 
   useEffect(() => {
     const staffData = sessionStorage.getItem('washlab_active_staff');
@@ -128,7 +196,7 @@ const NewOrder = () => {
       items: [{ category: serviceType, quantity: itemCount || 1 }],
       totalPrice: pricing.total,
       weight: weight,
-      loads: Math.ceil(weight / 5),
+      loads: Math.ceil(weight / 8), // 8kg per load
       hasWhites: false,
       paymentMethod: 'pending',
       paymentStatus: 'pending',
@@ -136,12 +204,26 @@ const NewOrder = () => {
       checkedInBy: activeStaff?.name || 'Unknown',
     });
     
+    // Mark card as issued
+    const issued = getIssuedCards();
+    issued.push(bagCardNumber);
+    setIssuedCards(issued);
+    
+    // Clear draft
+    localStorage.removeItem(DRAFT_ORDER_KEY);
+    
     toast.success('Order created successfully');
     navigate('/washstation/payment', { state: { orderId: order.id } });
   };
 
   const handleSaveAsDraft = () => {
     toast.info('Order saved as draft');
+    navigate('/washstation/dashboard');
+  };
+
+  const handleCancelOrder = () => {
+    localStorage.removeItem(DRAFT_ORDER_KEY);
+    toast.info('Order cancelled');
     navigate('/washstation/dashboard');
   };
 
@@ -158,10 +240,14 @@ const NewOrder = () => {
   const service = PRICING_CONFIG.services.find(s => s.id === serviceType);
   const pricePerUnit = service?.price || 50;
 
+  // Machine capacity display
+  const machineCapacity = PRICING_CONFIG.KG_PER_LOAD; // 8kg
+  const loadsNeeded = Math.ceil(weight / machineCapacity);
+
   const services = [
-    { id: 'wash_and_dry', name: 'Wash & Dry', price: '$1.50 / kg', image: washingMachine },
-    { id: 'wash_only', name: 'Wash Only', price: '$1.00 / kg', image: dryingImage },
-    { id: 'dry_only', name: 'Dry Only', price: '$0.80 / kg', image: foldingImage },
+    { id: 'wash_only', name: 'Wash Only', price: 'GH₵ 25 / load', image: dryingImage },
+    { id: 'wash_and_dry', name: 'Wash & Dry', price: 'GH₵ 50 / load', image: washingMachine },
+    { id: 'dry_only', name: 'Dry Only', price: 'GH₵ 25 / load', image: foldingImage },
   ];
 
   // Number pad component
@@ -305,21 +391,13 @@ const NewOrder = () => {
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="bg-muted/50 rounded-xl p-4">
                       <p className="text-xs text-muted-foreground">LAST VISIT</p>
-                      <p className="font-semibold text-foreground">{foundCustomer.lastVisit || 'Oct 12, 2023'}</p>
-                      <p className="text-xs text-muted-foreground">{foundCustomer.daysSince || '3 days ago'}</p>
+                      <p className="font-semibold text-foreground">{foundCustomer.lastVisit || 'New Customer'}</p>
                     </div>
                     <div className="bg-muted/50 rounded-xl p-4">
-                      <p className="text-xs text-muted-foreground">LIFETIME VALUE</p>
-                      <p className="font-semibold text-success">${(foundCustomer.totalSpent || 450).toFixed(2)}</p>
-                      <p className="text-xs text-muted-foreground">{foundCustomer.totalOrders || 12} Orders</p>
+                      <p className="text-xs text-muted-foreground">TOTAL ORDERS</p>
+                      <p className="font-semibold text-foreground">{foundCustomer.totalOrders || 0}</p>
                     </div>
                   </div>
-
-                  {foundCustomer.notes && (
-                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 mb-6 text-sm text-left">
-                      <span className="text-primary">ℹ</span> Customer prefers <strong>{foundCustomer.notes}</strong>. Please verify upon intake.
-                    </div>
-                  )}
 
                   <Button
                     onClick={handleConfirmCustomer}
@@ -368,7 +446,7 @@ const NewOrder = () => {
                     <label className="text-xs font-medium text-muted-foreground mb-2 block">MOBILE NUMBER</label>
                     <div className="flex items-center gap-2 px-4 py-3 bg-muted rounded-xl">
                       <Phone className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-foreground font-medium">(555) {formatPhone(phone)}</span>
+                      <span className="text-foreground font-medium">+233 {formatPhone(phone)}</span>
                       <span className="ml-auto text-muted-foreground">🔒</span>
                     </div>
                   </div>
@@ -451,7 +529,7 @@ const NewOrder = () => {
                       </div>
                       <p className="text-muted-foreground mt-1">
                         <User className="w-4 h-4 inline mr-1" />
-                        Customer: {foundCustomer?.name || newName} (Guest) 
+                        Customer: {foundCustomer?.name || newName} 
                         <button className="text-primary ml-2 hover:underline">Edit</button>
                       </p>
                     </div>
@@ -497,12 +575,27 @@ const NewOrder = () => {
                     </div>
                   </div>
 
-                  {/* 2. Weight */}
+                  {/* 2. Weight - with machine capacity info */}
                   <div>
                     <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                       <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">2</span>
                       Weight
                     </h3>
+                    
+                    {/* Machine Capacity Info */}
+                    <div className="bg-muted/50 border border-border rounded-xl p-4 mb-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Machine Capacity</p>
+                          <p className="font-semibold text-foreground">{machineCapacity}kg per load</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground">Loads Needed</p>
+                          <p className="text-2xl font-bold text-primary">{loadsNeeded}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
                     <div className="flex items-center gap-4">
                       <button 
                         onClick={() => setWeight(Math.max(0.5, weight - 0.5))}
@@ -552,12 +645,9 @@ const NewOrder = () => {
                         <Plus className="w-5 h-5" />
                       </button>
                     </div>
-                    <p className="text-xs text-muted-foreground text-center mt-2">
-                      Use for tracking individual expensive items like comforters or jackets.
-                    </p>
                   </div>
 
-                  {/* 4. Bag Card Number (CRITICAL) */}
+                  {/* 4. Bag Card Number (CRITICAL) - with duplicate prevention */}
                   <div>
                     <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                       <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">4</span>
@@ -567,21 +657,35 @@ const NewOrder = () => {
                     <p className="text-sm text-muted-foreground mb-3">
                       Select the physical card placed inside the laundry bag. Customer gets the matching card.
                     </p>
-                    <div className="grid grid-cols-5 gap-2">
-                      {availableCards.map((card) => (
-                        <button
-                          key={card}
-                          onClick={() => setBagCardNumber(card)}
-                          className={`h-12 rounded-xl font-bold text-lg transition-all ${
-                            bagCardNumber === card
-                              ? 'bg-primary text-primary-foreground ring-2 ring-primary/50'
-                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                          }`}
-                        >
-                          #{card}
-                        </button>
-                      ))}
-                    </div>
+                    
+                    {availableCards.length > 0 ? (
+                      <div className="grid grid-cols-5 gap-2">
+                        {availableCards.map((card) => (
+                          <button
+                            key={card}
+                            onClick={() => setBagCardNumber(card)}
+                            className={`h-12 rounded-xl font-bold text-lg transition-all ${
+                              bagCardNumber === card
+                                ? 'bg-primary text-primary-foreground ring-2 ring-primary/50'
+                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                            }`}
+                          >
+                            #{card}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-warning/10 border border-warning/20 rounded-xl p-4">
+                        <p className="text-warning font-medium flex items-center gap-2">
+                          <AlertCircle className="w-5 h-5" />
+                          All cards are currently issued
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Wait for customers to return cards before creating new orders.
+                        </p>
+                      </div>
+                    )}
+                    
                     {bagCardNumber && (
                       <div className="mt-3 p-3 bg-success/10 border border-success/20 rounded-xl">
                         <p className="text-sm text-success font-medium">
@@ -612,9 +716,6 @@ const NewOrder = () => {
                           {note}
                         </button>
                       ))}
-                      <button className="px-4 py-2 rounded-full text-sm font-medium bg-muted text-muted-foreground hover:bg-muted/80">
-                        + Custom
-                      </button>
                     </div>
                     <textarea
                       value={customNote}
@@ -633,17 +734,17 @@ const NewOrder = () => {
                     <div className="space-y-3 pb-4 border-b border-border">
                       <div className="flex justify-between">
                         <span className="text-foreground">{services.find(s => s.id === serviceType)?.name}</span>
-                        <span className="font-semibold text-foreground">${pricing.subtotal.toFixed(2)}</span>
+                        <span className="font-semibold text-foreground">GH₵ {pricing.subtotal.toFixed(2)}</span>
                       </div>
                       <div className="text-sm text-muted-foreground pl-2">
-                        {weight.toFixed(1)} kg × ${pricePerUnit.toFixed(2)}
+                        {loadsNeeded} load{loadsNeeded > 1 ? 's' : ''} × GH₵ {pricePerUnit.toFixed(2)}
                       </div>
                       {orderNotes.includes('Rush Service') && (
                         <div className="flex justify-between">
                           <span className="text-foreground flex items-center gap-1">
                             Rush Fee <Clock className="w-4 h-4" />
                           </span>
-                          <span className="text-foreground">${rushFee.toFixed(2)}</span>
+                          <span className="text-foreground">GH₵ {rushFee.toFixed(2)}</span>
                         </div>
                       )}
                     </div>
@@ -651,35 +752,39 @@ const NewOrder = () => {
                     <div className="py-4 border-b border-border">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Subtotal</span>
-                        <span className="text-foreground">${(pricing.subtotal + rushFee).toFixed(2)}</span>
+                        <span className="text-foreground">GH₵ {(pricing.subtotal + rushFee).toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between text-sm mt-1">
                         <span className="text-muted-foreground">Tax (8%)</span>
-                        <span className="text-foreground">${pricing.tax.toFixed(2)}</span>
+                        <span className="text-foreground">GH₵ {pricing.tax.toFixed(2)}</span>
                       </div>
                     </div>
 
                     <div className="flex justify-between items-center py-4">
                       <span className="font-medium text-foreground">Total</span>
-                      <span className="text-3xl font-bold text-primary">${(pricing.total + rushFee).toFixed(2)}</span>
+                      <span className="text-3xl font-bold text-primary">GH₵ {(pricing.total + rushFee).toFixed(2)}</span>
                     </div>
 
                     <Button
                       onClick={handleProceedToPayment}
+                      disabled={!bagCardNumber || availableCards.length === 0}
                       className="w-full h-12 bg-primary text-primary-foreground rounded-xl font-semibold mb-3"
                     >
                       Proceed to Payment <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
-                    <button
-                      onClick={handleSaveAsDraft}
-                      className="w-full text-center text-sm text-muted-foreground hover:text-foreground"
-                    >
-                      Save as Draft
-                    </button>
-
-                    <div className="mt-4 text-xs text-muted-foreground text-center space-y-1">
-                      <p><span className="bg-muted px-2 py-0.5 rounded">Ent</span> Confirm</p>
-                      <p><span className="bg-muted px-2 py-0.5 rounded">Esc</span> Cancel</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleSaveAsDraft}
+                        className="flex-1 text-center text-sm text-muted-foreground hover:text-foreground py-2"
+                      >
+                        Save Draft
+                      </button>
+                      <button
+                        onClick={handleCancelOrder}
+                        className="flex-1 text-center text-sm text-destructive hover:text-destructive/80 py-2"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </div>
                 </div>
